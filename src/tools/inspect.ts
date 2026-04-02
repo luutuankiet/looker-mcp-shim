@@ -69,9 +69,10 @@ async function inspectDashboard(dashboardId: string, session: Session) {
     sdk.ok(sdk.dashboard_dashboard_filters(dashboardId, '')),
   ])
 
-  const tiles = (elements as any[]).map((e: any) => {
+  const tiles = (elements as any[]).map((e: any, idx: number) => {
     const q = e.query || e.result_maker?.query || {}
     return {
+      '#': idx + 1,  // ordinal — use in run_tile as tile: "#2" or tile: "Revenue"
       id: e.id,
       title: e.title || e.title_text || '(untitled)',
       type: e.type,
