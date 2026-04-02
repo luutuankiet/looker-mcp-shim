@@ -41,8 +41,8 @@ jobs:
           node-version: 22
           # NOTE: no registry-url — it injects NODE_AUTH_TOKEN placeholder
           # which poisons OIDC auth (actions/setup-node#1440)
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
+      # npm 10.x (bundled with Node 22) already supports --provenance.
+      # npm install -g npm@latest breaks on Node 22.22.2 (MODULE_NOT_FOUND promise-retry)
       - name: Install dependencies
         run: npm ci
       - name: Build
