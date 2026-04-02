@@ -59,6 +59,26 @@ async function main() {
     if (testFields.length < 2) testFields = [`${testExplore}.business_unit`, `${testExplore}.count`]
     console.log(`  Using ${testModel}/${testExplore}: ${testFields.join(', ')}\n`)
 
+    // === 3b. RUN TILE QUERIES (timeout + async fallback) ===
+    console.log('--- 3b. RUN TILE QUERIES ---')
+    if (queryableTiles.length > 0) {
+      const qTile = queryableTiles[0]
+      await test(`run_tile ${qTile.id} json (limit 3, 120s timeout)`, async () => {
+        const r = await queryTools.handle('run_tile', {
+          element_id: String(qTile.id), format: 'json', limit: 3, timeout: 120
+        }, session) as any
+        const rows = Array.isArray(r) ? r.length : 0
+        console.log(`    ${rows} rows`)
+      })
+      await test(`run_tile ${qTile.id} sql`, async () => {
+        const r = await queryTools.handle('run_tile', {
+          element_id: String(qTile.id), format: 'sql', timeout: 120
+        }, session) as any
+        assert(r.sql && typeof r.sql === 'string', 'No SQL')
+        console.log(`    ${r.sql.length} chars`)
+      })
+    }
+
     // === 4. CREATE TILES ===
     console.log('--- 4. CREATE TILES ---')
     await test('create_tile - bar chart', async () => {
@@ -175,7 +195,7 @@ async function main() {
     console.log('--- 11. AD-HOC QUERY ---')
     await test('run_query', async () => {
       const r = await queryTools.handle('run_query', {
-        model: testModel, explore: testExplore, fields: testFields.slice(0,2), sorts: [`${testFields[0]} desc`], limit: 5,
+        model: testModel, explore: testExplore, fields: testFields.slice(0,2), sorts: [`${testFields[0]} desc`], limit: 5, timeout: 120,
       }, session) as any
       const rows = Array.isArray(r) ? r.length : 0
       assert(rows > 0, 'No rows'); console.log(`    ${rows} rows`)
