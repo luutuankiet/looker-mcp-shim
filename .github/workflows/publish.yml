@@ -41,8 +41,6 @@ jobs:
           node-version: 22
           # NOTE: no registry-url — it injects NODE_AUTH_TOKEN placeholder
           # which poisons OIDC auth (actions/setup-node#1440)
-      # npm 10.x (bundled with Node 22) already supports --provenance.
-      # npm install -g npm@latest breaks on Node 22.22.2 (MODULE_NOT_FOUND promise-retry)
       - name: Install dependencies
         run: npm ci
       - name: Build
@@ -66,7 +64,9 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
       - name: Publish to npm (OIDC provenance)
-        run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
+        # npm install -g npm@latest breaks on Node 22.22.2 (MODULE_NOT_FOUND promise-retry)
+        # npx runs latest npm without corrupting the global install
+        run: npx -y npm@latest publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
 
   preview:
     name: Preview (pkg-pr-new)
