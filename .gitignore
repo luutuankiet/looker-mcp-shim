@@ -1,0 +1,7 @@
+node_modules/
+dist/
+remote_looker_bitbucket
+gsd-lite
+tmp/
+.env
+tmp.md
