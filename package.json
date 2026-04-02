@@ -1,6 +1,6 @@
 {
   "name": "@luutuankiet/looker-mcp-shim",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for AI-powered Looker development — tile inspection, compiled SQL, dev/prod mode, code execution escape hatch",
   "type": "module",
   "main": "dist/index.js",
