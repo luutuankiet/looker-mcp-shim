@@ -23,7 +23,7 @@ Google's upstream [Looker MCP](https://github.com/GoogleCloudPlatform/looker-mcp
 | Create/update/delete tiles | ❌ Not available | ✅ `create_tile`, `update_tile`, `delete_tile` |
 | Create/update/delete filters | ❌ Not available | ✅ `create_filter`, `update_filter`, `delete_filter` |
 
-This is a **surgical complement** to the upstream Looker MCP — not a replacement. Use both together for full coverage.
+Starting with v0.2.0, this shim **automatically bridges** the upstream Looker MCP — one server, all tools. No need to register two servers.
 
 ## Architecture
 
@@ -40,14 +40,19 @@ graph TD
 
     subgraph "looker-mcp-shim"
         D["core.ts<br/>Session Manager + Safety Layer"]
-        E["inspect"]
-        F["run_tile / run_query"]
-        G["reset_to_remote / validate"]
-        H["switch_mode"]
+        E["inspect / run_tile / run_query"]
+        F["create_tile / update_tile / delete_tile"]
+        G["create_filter / update_filter / delete_filter"]
+        H["switch_mode / reset_to_remote / validate"]
         I["execute_sdk_code"]
+        U["upstream.ts<br/>MCP Client Bridge"]
     end
 
-    subgraph "Upstream"
+    subgraph "Upstream Looker MCP"
+        V["@toolbox-sdk/server<br/>41 tools: LookML CRUD<br/>run_dashboard, query_sql, etc."]
+    end
+
+    subgraph "Looker API"
         J["@looker/sdk-node<br/>Auth + Token Refresh"]
         K["Looker REST API 4.0"]
     end
@@ -61,12 +66,21 @@ graph TD
     D --> G
     D --> H
     D --> I
+    D --> U
+    U -->|stdio| V
+    V --> K
     D --> J
     J --> K
 
     style D fill:#4285F4,color:#fff
     style I fill:#FBBC04,color:#000
+    style U fill:#34A853,color:#fff
+    style V fill:#EA4335,color:#fff
 ```
+
+**One server, 54 tools.** The shim spawns `@toolbox-sdk/server` as a child process, connects via MCP client, discovers all upstream tools, and merges them with our custom tools. Shim tools take priority on name collisions. If upstream is unavailable, the 13 shim tools still work independently.
+
+Disable upstream: `SKIP_UPSTREAM=1 npx @luutuankiet/looker-mcp-shim`
 
 ## Quickstart
 
@@ -422,22 +436,16 @@ The MCP server is long-lived (conversation lifetime). Session state = process st
 
 ## Relation to Upstream Looker MCP
 
-[Google's Looker MCP](https://github.com/GoogleCloudPlatform/looker-mcp) (`@toolbox-sdk/server --prebuilt=looker,looker-dev`) provides:
-- ✅ LookML file CRUD
-- ✅ `run_dashboard` (full dashboard data)
-- ✅ `query_sql` (ad-hoc SQL)
-- ✅ Dev mode toggle
+Since v0.2.0, this shim **automatically wraps** Google's upstream [Looker MCP](https://github.com/GoogleCloudPlatform/looker-mcp) (`@toolbox-sdk/server --prebuilt=looker,looker-dev`). You only need to register ONE server — it exposes everything.
 
-This shim **adds** what's missing:
-- ✅ **Tile-level** inspection and query execution
-- ✅ **Compiled SQL** extraction per tile
-- ✅ **Filter wiring** visibility
-- ✅ **Atomic** dev mode + branch switching
-- ✅ **Dashboard mutation** — create, update, delete tiles and filters
-- ✅ **Code execution** escape hatch for 200+ API endpoints
-- ✅ **Safety layer** to prevent production-breaking operations
+| Source | Tools | Examples |
+|--------|-------|----------|
+| **Shim** (13 tools) | Tile inspection, mutation, query, safety | `inspect`, `run_tile`, `create_tile`, `execute_sdk_code` |
+| **Upstream** (41 tools) | LookML CRUD, dashboards, queries, health | `get_project_files`, `run_dashboard`, `query_sql`, `create_view_from_table` |
 
-**Use both together** for complete Looker development coverage.
+Shim tools take priority on any name collision. If upstream fails to connect (not installed, auth error), the 13 shim tools still work independently.
+
+To run shim-only: `SKIP_UPSTREAM=1 npx @luutuankiet/looker-mcp-shim`
 
 ## License
 
