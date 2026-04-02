@@ -20,6 +20,8 @@ Google's upstream [Looker MCP](https://github.com/GoogleCloudPlatform/looker-mcp
 | Reset to remote git state | ❌ Workaround only | ✅ `reset_to_remote` |
 | Dev mode + branch as atomic init | ❌ Separate calls | ✅ `switch_mode` |
 | Arbitrary SDK calls | ❌ Fixed tool set | ✅ `execute_sdk_code` |
+| Create/update/delete tiles | ❌ Not available | ✅ `create_tile`, `update_tile`, `delete_tile` |
+| Create/update/delete filters | ❌ Not available | ✅ `create_filter`, `update_filter`, `delete_filter` |
 
 This is a **surgical complement** to the upstream Looker MCP — not a replacement. Use both together for full coverage.
 
@@ -234,6 +236,59 @@ Blocked methods throw immediately:
 // → Error: BLOCKED: deploy_ref_to_production is not allowed — could affect production
 ```
 
+### `create_tile` — Add Tiles to Dashboards
+
+Create a new visualization tile on any dashboard. Provide an inline query (model + view + fields) or reference an existing saved query.
+
+```json
+{"dashboard_id": "151", "title": "Revenue by Type", "query": {
+  "model": "ecommerce", "view": "orders",
+  "fields": ["orders.region", "orders.total_revenue"],
+  "sorts": ["orders.total_revenue desc"], "limit": "20",
+  "vis_config": {"type": "looker_bar"}
+}}
+```
+
+### `update_tile` — Modify Tile Queries & Visualization
+
+Partial updates — only specify what changed. Existing query fields are preserved and merged.
+
+```json
+{"element_id": "1001", "title": "Updated Title"}
+
+{"element_id": "1001", "query": {"filters": {"orders.created_date": "7 days"}}}
+
+{"element_id": "1001", "query": {"vis_config": {"type": "looker_bar", "show_view_names": false}}}
+```
+
+### `delete_tile` — Remove Tiles
+
+```json
+{"element_id": "1001"}
+```
+
+### `create_filter` — Add Dashboard Filters
+
+Add field-based filters with optional cross-filter wiring.
+
+```json
+{"dashboard_id": "151", "name": "date_filter", "title": "Date Range",
+ "type": "field_filter", "dimension": "orders.created_date",
+ "model": "ecommerce", "explore": "orders"}
+```
+
+### `update_filter` — Modify Filters
+
+```json
+{"filter_id": "42", "default_value": "30 days", "title": "Date Range"}
+```
+
+### `delete_filter` — Remove Filters
+
+```json
+{"filter_id": "42"}
+```
+
 ## Safety Layer
 
 This server runs with API credentials that may have elevated permissions. The safety layer is **hardcoded and non-configurable**:
@@ -378,6 +433,7 @@ This shim **adds** what's missing:
 - ✅ **Compiled SQL** extraction per tile
 - ✅ **Filter wiring** visibility
 - ✅ **Atomic** dev mode + branch switching
+- ✅ **Dashboard mutation** — create, update, delete tiles and filters
 - ✅ **Code execution** escape hatch for 200+ API endpoints
 - ✅ **Safety layer** to prevent production-breaking operations
 

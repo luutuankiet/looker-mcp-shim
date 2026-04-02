@@ -26,9 +26,10 @@ import * as gitTools from './tools/git.js'
 import * as inspectTools from './tools/inspect.js'
 import * as queryTools from './tools/query.js'
 import * as executeTools from './tools/execute.js'
+import * as dashboardTools from './tools/dashboard.js'
 
 // All tool modules
-const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools]
+const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools]
 
 // Collect all tool definitions
 const allToolDefs = toolModules.flatMap((mod) => mod.tools)
@@ -57,7 +58,7 @@ async function main() {
 
   // Create MCP server
   const server = new Server(
-    { name: 'looker-dev-tools', version: '0.1.0' },
+    { name: 'looker-dev-tools', version: '0.1.2' },
     { capabilities: { tools: {} } }
   )
 
