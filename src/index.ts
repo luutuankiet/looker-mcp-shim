@@ -33,8 +33,10 @@ import * as inspectTools from './tools/inspect.js'
 import * as queryTools from './tools/query.js'
 import * as executeTools from './tools/execute.js'
 import * as dashboardTools from './tools/dashboard.js'
+import * as sdkCatalogTools from './tools/sdk-catalog.js'
+import { loadCatalog } from './tools/sdk-catalog.js'
 
-const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools]
+const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools]
 
 // Collect shim tool definitions
 const shimToolDefs = toolModules.flatMap((mod) => mod.tools)
@@ -61,7 +63,10 @@ async function main() {
     process.exit(1)
   }
 
-  // 2. Connect upstream MCP bridge (unless SKIP_UPSTREAM=1)
+  // 2. Load SDK method catalog from Looker swagger.json (non-blocking)
+  loadCatalog(process.env.LOOKER_BASE_URL || '').catch(() => {})
+
+  // 3. Connect upstream MCP bridge (unless SKIP_UPSTREAM=1)
   let upstream: UpstreamBridge = {
     tools: [],
     callTool: async () => { throw new Error('No upstream') },

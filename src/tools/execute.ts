@@ -12,13 +12,20 @@ export const tools = [
     name: 'execute_sdk_code',
     description:
       'Execute arbitrary @looker/sdk TypeScript code against the current session.\n\n' +
+      'WORKFLOW: Before writing code, use retrieve_sdk_methods({query: "keyword"}) to find the ' +
+      'right method, then describe_sdk_method({method: "name"}) to get exact parameters and a ' +
+      'code example. Then paste the example into this tool.\n\n' +
       'Available in scope:\n' +
-      '- sdk: Looker40SDK (authenticated, safety-proxied — blocked methods will throw)\n' +
-      '- projectId: string\n' +
+      '- sdk: Looker40SDK (authenticated, safety-proxied)\n' +
+      '- projectId: string (current LookML project)\n' +
       '- currentMode: "dev" | "prod"\n\n' +
-      'Your code runs as an async function body. Use `return` to return results.\n' +
-      'Results must be JSON-serializable.\n\n' +
-      'Example: `const user = await sdk.ok(sdk.me()); return { name: user.display_name }`',
+      'Pattern: `const result = await sdk.ok(sdk.METHOD_NAME(args)); return result`\n' +
+      'Results must be JSON-serializable. Blocked methods (deploy, impersonate, delete) throw.\n\n' +
+      'Common examples:\n' +
+      '  sdk.ok(sdk.me()) // current user\n' +
+      '  sdk.ok(sdk.all_dashboards("")) // list dashboards\n' +
+      '  sdk.ok(sdk.dashboard_dashboard_elements("151", "")) // tile list\n' +
+      '  sdk.ok(sdk.search_looks({title: "%revenue%"})) // search looks',
     inputSchema: {
       type: 'object' as const,
       properties: {
