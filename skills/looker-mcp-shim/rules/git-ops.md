@@ -1,4 +1,21 @@
-# Git Ops — Dev Mode, Git Sync, Validation
+# Git Ops — Branches, Dev Mode, Git Sync, Validation
+
+## Branch Safety Model
+
+Two separate gates:
+- `LOOKER_ALLOWED_BRANCHES` — controls `switch_mode`. Set `*` to allow any branch.
+- `LOOKER_RESET_BRANCHES` — controls `reset_to_remote`. Explicit list only (no wildcard). Defaults to `LOOKER_DEV_BRANCH`.
+
+**Switching is safe** (read-only inspection per session). **Resetting is destructive** (wipes uncommitted changes).
+
+```
+switch_mode({mode: "dev", branch: "feat/alice"})  → allowed (wildcard)
+reset_to_remote({})                                 → BLOCKED if branch not in RESET_BRANCHES
+```
+
+**Rule:** Always switch to a safe branch (one in `RESET_BRANCHES`) before calling `reset_to_remote`.
+
+## Switch Mode — Dev Mode, Git Sync, Validation
 
 ## Switch Mode
 
@@ -6,6 +23,8 @@
 switch_mode({mode: "dev", branch: "feat/my-branch"})
 switch_mode({mode: "prod"})
 ```
+
+Switches between dev and prod mode. In dev mode, specify any branch (if `ALLOWED_BRANCHES=*`).
 
 Dev mode is required for:
 - Editing LookML files

@@ -172,6 +172,80 @@ Only touches `looker-mcp-shim/` namespace. No interference with other skills.
 
 ---
 
+## Branch Safety Model
+
+Looker dev mode operates on git branches. The shim separates **switching** (safe) from **resetting** (destructive):
+
+```mermaid
+graph TD
+    A[Agent wants to work<br/>on a branch] --> B{switch_mode}
+    B -->|LOOKER_ALLOWED_BRANCHES=*| C[Switch to ANY branch]
+    B -->|explicit list| D[Only listed branches]
+    
+    C --> E{Agent calls<br/>reset_to_remote?}
+    D --> E
+    
+    E -->|Branch in<br/>LOOKER_RESET_BRANCHES| F[Reset allowed<br/>Wipes uncommitted changes]
+    E -->|Branch NOT in<br/>LOOKER_RESET_BRANCHES| G[BLOCKED<br/>Other people's work protected]
+    
+    style F fill:#34A853,color:#fff
+    style G fill:#EA4335,color:#fff
+```
+
+### Setup
+
+```bash
+# .env
+LOOKER_DEV_BRANCH=feat/dev_tools                    # startup branch
+LOOKER_ALLOWED_BRANCHES=*                            # switch to any branch
+LOOKER_RESET_BRANCHES=feat/dev_tools,tmp/sandbox     # ONLY these can be reset
+```
+
+### How It Works
+
+| Action | Gate | Example |
+|--------|------|---------|
+| `switch_mode({mode: "dev", branch: "feat/alice"})` | `ALLOWED_BRANCHES` | ✅ With `*`, any branch works |
+| `switch_mode({mode: "dev", branch: "main"})` | `ALLOWED_BRANCHES` | ✅ Safe — read-only inspection per session |
+| `reset_to_remote({})` on `feat/dev_tools` | `RESET_BRANCHES` | ✅ In the list — reset allowed |
+| `reset_to_remote({})` on `feat/alice` | `RESET_BRANCHES` | ❌ BLOCKED — not in list |
+| `reset_to_remote({})` on `main` | `RESET_BRANCHES` | ❌ BLOCKED — not in list |
+
+### Typical Branch Workflow
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Shim
+    participant Looker
+
+    Note over Agent: Start on default dev branch
+    Agent->>Shim: switch_mode({mode: "dev",<br/>branch: "feat/dev_tools"})
+    Shim-->>Agent: {mode: "dev", branch: "feat/dev_tools"}
+
+    Note over Agent: Inspect another team member's branch
+    Agent->>Shim: switch_mode({mode: "dev",<br/>branch: "feat/alice-dashboard"})
+    Shim-->>Agent: {mode: "dev", branch: "feat/alice-dashboard"}
+    Agent->>Shim: inspect({target: "152"})
+    Shim-->>Agent: Dashboard state on Alice's branch
+
+    Note over Agent: Try to reset — BLOCKED
+    Agent->>Shim: reset_to_remote({})
+    Shim-->>Agent: ERROR: Branch "feat/alice-dashboard"<br/>not in LOOKER_RESET_BRANCHES
+
+    Note over Agent: Switch to safe branch, edit, reset
+    Agent->>Shim: switch_mode({mode: "dev",<br/>branch: "feat/dev_tools"})
+    Note over Agent: Edit LookML, git push
+    Agent->>Shim: reset_to_remote({})
+    Shim-->>Agent: {success: true}
+    Agent->>Shim: validate({})
+    Shim-->>Agent: {status: "ok"}
+```
+
+**Why this matters:** `reset_to_remote` wipes all uncommitted changes on the current branch for the API user. Without the safety gate, an agent switching to a colleague's branch and resetting could destroy work-in-progress.
+
+---
+
 ## Agent Workflows
 
 ### 1. Dashboard Inspection
