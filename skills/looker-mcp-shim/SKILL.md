@@ -18,6 +18,24 @@ ALWAYS read this skill BEFORE calling any Looker MCP tool. Use when:
 
 **CRITICAL:** To get data from a tile, use `run_tile` with `dashboard_id` + `tile` (e.g. `"#1"` or `"Revenue"`). It auto-applies dashboard filters. Do NOT manually reconstruct filters.
 
+## Tool Priority — Shim First, Upstream Last
+
+Our hand-rolled shim tools are **always preferred** over upstream equivalents. They have filter auto-wiring, better error messages, and token-efficient output. Upstream tools are fallbacks only.
+
+| Need | Use | NOT (upstream fallback) | Why shim wins |
+|------|-----|------------------------|---------------|
+| Tile data / SQL | `run_tile` | `run_dashboard`, `query_sql`, `query` | Auto-wires dashboard filters, ordinal refs, async fallback |
+| Dashboard overview | `inspect` | `get_dashboards`, `get_looks` | URL-smart, two-level depth, token-efficient |
+| Add tile | `create_tile` | `make_dashboard` | Handles two-step query creation automatically |
+| Edit tile | `update_tile` | — | Partial merge — only send what changed |
+| Add filter | `create_filter` | — | Simpler interface, validates inputs |
+| Dev/prod toggle | `switch_mode` | `dev_mode` | Branch selection + wildcard + confirmation |
+| Validate LookML | `validate` | `validate_project` | Structured file:line errors |
+| Ad-hoc query | `run_query` | `query`, `query_sql` | Filter auto-wiring + async fallback |
+| Anything else | `retrieve_sdk_methods` → `execute_sdk_code` | any upstream tool | Covers all 469 API methods |
+
+**Rule:** If a shim tool exists for your task, use it. Only reach for upstream tools when the shim cannot do the job (e.g. `get_project_files`, `update_project_file` for LookML file I/O — no shim equivalent yet).
+
 ## Tools Overview
 
 | Tool | Purpose |

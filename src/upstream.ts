@@ -10,6 +10,38 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 
+/**
+ * Upstream tools that overlap with our hand-rolled shim tools.
+ * Key = upstream tool name, Value = preferred shim tool + reason.
+ *
+ * When an upstream tool matches, its description gets a loud warning
+ * steering the agent toward the shim equivalent. Agents that skip
+ * skill docs and go straight to retrieve_tools still see the warning
+ * at the exact moment they're deciding which tool to call.
+ */
+const SHIM_PREFERRED: Record<string, string> = {
+  run_dashboard:
+    'run_tile — per-tile data with filter auto-wiring, ordinal refs (#1), title matching, async fallback. run_dashboard returns bulk data without tile context.',
+  query_sql:
+    'run_tile (format: "sql") or run_query — has filter auto-wiring + async fallback. query_sql requires manual filter construction.',
+  query:
+    'run_tile or run_query — has filter auto-wiring, dashboard context, async fallback. Raw query requires manual filter/explore setup.',
+  make_dashboard:
+    'create_tile + create_filter — handles two-step query creation automatically. make_dashboard is coarse-grained.',
+  make_look:
+    'run_query or execute_sdk_code — more flexible for agent workflows.',
+  dev_mode:
+    'switch_mode — supports branch selection, wildcard branches, and mode confirmation in one call.',
+  validate_project:
+    'validate — returns structured file:line errors, not raw validation output.',
+  get_dashboards:
+    'inspect — URL-smart input, two-level depth control, token-efficient summaries.',
+  get_looks:
+    'inspect — URL-smart input with look URL support.',
+  run_look:
+    'run_tile or run_query — has filter auto-wiring and async fallback.',
+}
+
 export interface UpstreamBridge {
   tools: Tool[]
   callTool: (name: string, args: Record<string, unknown>) => Promise<unknown>
@@ -93,12 +125,20 @@ export async function connectUpstream(
     upstreamTools = (result.tools || []).map((t: Tool) => {
       const prefixedName = cfg.toolPrefix ? `${cfg.toolPrefix}${t.name}` : t.name
       toolMap.set(prefixedName, t.name)
+
+      // If a hand-rolled shim tool exists for this upstream tool,
+      // prepend a loud warning so agents prefer the shim even if
+      // they skip skill docs and go straight to tool discovery.
+      const shimAlt = SHIM_PREFERRED[t.name]
+      const desc = t.description || t.name
+      const prefix = shimAlt
+        ? `⚠️ UPSTREAM FALLBACK — prefer ${shimAlt.split(' — ')[0]} instead. ${shimAlt}. Only use this if the shim tool cannot accomplish your task. Original: `
+        : '[upstream] '
+
       return {
         ...t,
         name: prefixedName,
-        description: t.description
-          ? `[upstream] ${t.description}`
-          : `[upstream] ${t.name}`,
+        description: `${prefix}${desc}`,
       }
     })
 

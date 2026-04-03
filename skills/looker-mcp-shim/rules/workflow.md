@@ -1,5 +1,23 @@
 # Workflow — The Looker Dev Loop
 
+## Tool Priority (Read First)
+
+**Always prefer shim tools over upstream [upstream] tools.** Upstream tools lack filter auto-wiring, return bloated output, and waste tokens.
+
+| Need | Use | NOT |
+|------|-----|-----|
+| Tile data | `run_tile` | `run_dashboard` [upstream] |
+| Compiled SQL | `run_tile` (format: "sql") | `query_sql` [upstream] |
+| Dashboard overview | `inspect` | `get_dashboards` [upstream] |
+| Add tile | `create_tile` | `make_dashboard` [upstream] |
+| Add filter | `create_filter` | — |
+| Dev/prod mode | `switch_mode` | `dev_mode` [upstream] |
+| Validate | `validate` | `validate_project` [upstream] |
+| Ad-hoc query | `run_query` | `query` [upstream] |
+| Anything else | `retrieve_sdk_methods` → `execute_sdk_code` | — |
+
+**Upstream is last resort** — only for capabilities with no shim equivalent (e.g. `get_project_files`, `update_project_file`).
+
 ## Decision Tree
 
 ```
