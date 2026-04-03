@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+// Subcommand routing
+if (process.argv[2] === 'install-skill') {
+  await import('./install-skill.js')
+  process.exit(0)
+}
+
 /**
  * Looker Dev Tools — MCP Server Entry Point
  *
@@ -93,7 +99,7 @@ async function main() {
 
   // 4. Create MCP server
   const server = new Server(
-    { name: 'looker-dev-tools', version: '0.2.0' },
+    { name: 'looker-dev-tools', version: '0.3.0' },
     { capabilities: { tools: {} } }
   )
 
