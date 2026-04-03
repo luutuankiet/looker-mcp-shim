@@ -21,7 +21,14 @@ import type { Looker40SDK } from '@looker/sdk'
 export const CONFIG = {
   projectId: process.env.LOOKER_PROJECT_ID || '',
   devBranch: process.env.LOOKER_DEV_BRANCH || 'feat/dev_tools',
+  /** Branches the agent can switch_mode to. '*' = any branch. */
   allowedBranches: (process.env.LOOKER_ALLOWED_BRANCHES || 'feat/dev_tools')
+    .split(',')
+    .map(b => b.trim())
+    .filter(Boolean),
+  /** Branches that reset_to_remote can wipe. Defaults to LOOKER_DEV_BRANCH only.
+   *  This is deliberately separate from allowedBranches — switching is safe, resetting is destructive. */
+  resetBranches: (process.env.LOOKER_RESET_BRANCHES || process.env.LOOKER_DEV_BRANCH || 'feat/dev_tools')
     .split(',')
     .map(b => b.trim())
     .filter(Boolean),
@@ -117,10 +124,11 @@ export async function createSession(): Promise<Session> {
     branch?: string
   ): Promise<{ mode: string; branch: string | null }> => {
     if (mode === 'dev' && branch) {
-      if (!CONFIG.allowedBranches.includes(branch)) {
+      const wildcard = CONFIG.allowedBranches.includes('*')
+      if (!wildcard && !CONFIG.allowedBranches.includes(branch)) {
         throw new Error(
           `Branch "${branch}" is not in LOOKER_ALLOWED_BRANCHES: [${CONFIG.allowedBranches.join(', ')}]. ` +
-          `Edit .env to add it, then restart.`
+          `Set LOOKER_ALLOWED_BRANCHES=* to allow any branch, or add it explicitly.`
         )
       }
     }
@@ -145,8 +153,16 @@ export async function createSession(): Promise<Session> {
     if (_currentMode !== 'dev') {
       throw new Error('reset_to_remote only works in dev mode. Switch to dev first.')
     }
+    // Safety: only allow reset on explicitly approved branches
+    if (_currentBranch && !CONFIG.resetBranches.includes(_currentBranch)) {
+      throw new Error(
+        `BLOCKED: reset_to_remote on branch "${_currentBranch}" is not allowed. ` +
+        `Safe branches for reset: [${CONFIG.resetBranches.join(', ')}]. ` +
+        `Set LOOKER_RESET_BRANCHES to add this branch, or switch to a safe branch first.`
+      )
+    }
     await sdk.ok(sdk.reset_project_to_remote(CONFIG.projectId))
-    return { success: true, message: `Reset ${CONFIG.projectId} to remote HEAD` }
+    return { success: true, message: `Reset ${CONFIG.projectId} (branch: ${_currentBranch}) to remote HEAD` }
   }
 
   // --- LookML validation ---

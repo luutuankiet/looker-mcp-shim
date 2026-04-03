@@ -13,7 +13,9 @@ Dev mode is required for:
 - All mutations (tiles, filters)
 - Running queries against dev branch LookML
 
-Branch must be in `LOOKER_ALLOWED_BRANCHES` or the call is rejected.
+Branch must be in `LOOKER_ALLOWED_BRANCHES` or the call is rejected. Set `LOOKER_ALLOWED_BRANCHES=*` to allow any branch.
+
+**Safety:** `reset_to_remote` is gated separately by `LOOKER_RESET_BRANCHES` (defaults to `LOOKER_DEV_BRANCH` only). The agent can switch to any branch for inspection but can only reset branches you explicitly approve.
 
 ## Reset to Remote
 

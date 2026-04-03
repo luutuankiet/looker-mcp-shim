@@ -453,7 +453,8 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 
 | Setting | Purpose |
 |---------|--------|
-| `LOOKER_ALLOWED_BRANCHES` | Branch allowlist for dev mode |
+| `LOOKER_ALLOWED_BRANCHES` | Branch allowlist for `switch_mode`. Set `*` for any branch |
+| `LOOKER_RESET_BRANCHES` | Branches where `reset_to_remote` is allowed (defaults to dev branch only) |
 | `LOOKER_SANDBOX_FOLDER_ID` | Restrict dashboard saves to folder |
 
 ---
@@ -469,6 +470,7 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 | `LOOKER_DEV_BRANCH` | No | `feat/dev_tools` | Default dev branch |
 | `LOOKER_ALLOWED_BRANCHES` | No | `feat/dev_tools` | Comma-separated allowlist |
 | `LOOKER_SANDBOX_FOLDER_ID` | No | — | Restrict saves to folder |
+| `LOOKER_RESET_BRANCHES` | No | `LOOKER_DEV_BRANCH` | Branches where `reset_to_remote` is allowed (safety gate) |
 | `SKIP_UPSTREAM` | No | — | Set to `1` to disable upstream bridge |
 
 ---
