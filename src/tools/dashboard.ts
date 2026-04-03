@@ -63,7 +63,17 @@ export const tools = [
             filters: { type: 'object' },
             sorts: { type: 'array', items: { type: 'string' } },
             limit: { type: 'string' },
-            vis_config: { type: 'object' },
+            vis_config: {
+              type: 'object',
+              description:
+                'Visualization config (opaque JSON blob — types matter, wrong types crash Looker frontend). ' +
+                'Common: type (string), stacking ("" | "normal" | "percent"), show_value_labels (bool), ' +
+                'hidden_fields (string[]), hidden_series (string[] — MUST be array not object!), ' +
+                'series_types ({field: "line" | "column"}), series_colors ({field: "#hex"}), ' +
+                'series_labels ({field: "Label"}), show_legend (bool), legend_position ("center" | "left" | "right"), ' +
+                'label_density (number), table_calculations ([{label, expression, value_format}]). ' +
+                'See rules/mutate.md "vis_config Reference" for full list.',
+            },
             filter_config: { type: 'object' },
             dynamic_fields: { type: 'string' },
           },
@@ -98,7 +108,17 @@ export const tools = [
             filters: { type: 'object' },
             sorts: { type: 'array', items: { type: 'string' } },
             limit: { type: 'string' },
-            vis_config: { type: 'object' },
+            vis_config: {
+              type: 'object',
+              description:
+                'Visualization config (opaque JSON blob — types matter, wrong types crash Looker frontend). ' +
+                'Common: type (string), stacking ("" | "normal" | "percent"), show_value_labels (bool), ' +
+                'hidden_fields (string[]), hidden_series (string[] — MUST be array not object!), ' +
+                'series_types ({field: "line" | "column"}), series_colors ({field: "#hex"}), ' +
+                'series_labels ({field: "Label"}), show_legend (bool), legend_position ("center" | "left" | "right"), ' +
+                'label_density (number), table_calculations ([{label, expression, value_format}]). ' +
+                'See rules/mutate.md "vis_config Reference" for full list.',
+            },
             dynamic_fields: { type: 'string' },
           },
         },
