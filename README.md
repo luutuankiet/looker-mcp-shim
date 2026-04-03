@@ -8,6 +8,13 @@ Inspect dashboards tile-by-tile. Create, modify, and delete tiles and filters. R
 npx -y @luutuankiet/looker-mcp-shim
 ```
 
+**Install skill docs** for Claude Code agents (workflow guides, API patterns, recipes):
+
+```bash
+npx -y @luutuankiet/looker-mcp-shim install-skill          # current project
+npx -y @luutuankiet/looker-mcp-shim install-skill --global  # all projects
+```
+
 ---
 
 ## What This Does
@@ -141,6 +148,27 @@ curl -X POST http://localhost:3456/call/inspect -d '{"args":{"target":"151"}}'
 ```
 
 Disable upstream bridge: `SKIP_UPSTREAM=1 npx @luutuankiet/looker-mcp-shim`
+
+### 4. Install Skill Docs (recommended)
+
+```bash
+npx -y @luutuankiet/looker-mcp-shim install-skill
+```
+
+Installs workflow guides to `.claude/skills/looker-mcp-shim/`:
+
+| File | What It Teaches |
+|------|----------------|
+| `SKILL.md` | Entry point + tool index + decision tree |
+| `rules/workflow.md` | The complete dev loop |
+| `rules/inspect.md` | Dashboard/tile inspection |
+| `rules/query.md` | Running queries with filter auto-wiring |
+| `rules/mutate.md` | Tile + filter CRUD, filter wiring via SDK |
+| `rules/git-ops.md` | Dev mode, git sync, LookML validation |
+| `rules/sdk-escape.md` | SDK method discovery + code execution |
+| `rules/patterns.md` | Migration QA, dashboard cloning, bulk ops |
+
+Only touches `looker-mcp-shim/` namespace. No interference with other skills.
 
 ---
 

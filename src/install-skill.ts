@@ -23,8 +23,10 @@ function getSkillsSource(): string {
   // In dist/ after build, skills/ is at package root
   // In src/ during dev, skills/ is also at package root
   const candidates = [
-    join(__dirname, '..', 'skills', NAMESPACE),       // from dist/install-skill.js
-    join(__dirname, '..', '..', 'skills', NAMESPACE), // from src/install-skill.ts via tsx
+    join(__dirname, '..', 'skills', NAMESPACE),          // from dist/install-skill.js -> ../skills/
+    join(__dirname, '..', '..', 'skills', NAMESPACE),     // from src/install-skill.ts via tsx -> ../../skills/
+    join(__dirname, 'skills', NAMESPACE),                  // fallback: skills/ next to script
+    join(__dirname, '..', '..', '..', 'skills', NAMESPACE), // fallback: deep nesting
   ]
   for (const c of candidates) {
     if (existsSync(join(c, 'SKILL.md'))) return c
