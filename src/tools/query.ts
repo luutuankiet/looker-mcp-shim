@@ -20,9 +20,11 @@ export const tools = [
   {
     name: 'run_tile',
     description:
-      'Run a dashboard tile query with dashboard filters automatically applied.\n\n' +
+      'Query a dashboard tile and get its data (json), compiled SQL, or CSV. ' +
+      'This is the PRIMARY tool for getting tile data, executing tile queries, and QA verification. ' +
+      'Dashboard filters are AUTO-APPLIED.\n\n' +
       'Accepts element_id directly, OR dashboard_id + tile (ordinal like "#2" or title match ' +
-      'like "Revenue"). Dashboard filter defaults are auto-wired via filter_wiring metadata.\n\n' +
+      'like "Revenue"). You do NOT need to manually reconstruct filters. They are auto-wired from filter_wiring metadata + dashboard defaults.\n\n' +
       'Override specific filters with the filters arg. Use force_production=true for prod cache.\n\n' +
       'Examples:\n' +
       '  run_tile({element_id: "1487"})  \u2014 auto-applies dashboard filter defaults\n' +
@@ -46,7 +48,7 @@ export const tools = [
   {
     name: 'run_query',
     description:
-      'Run an ad-hoc explore query against a model/explore.\n\n' +
+      'Run an ad-hoc explore query. For tile data, prefer run_tile (auto-applies dashboard filters).\n\n' +
       'For complex explores, automatically falls back to async query tasks if the ' +
       'synchronous call times out.\n\n' +
       'Use force_production=true to compare dev vs prod data.',

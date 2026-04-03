@@ -1,26 +1,29 @@
 ---
 name: looker-mcp-shim
-description: Looker development workflow for AI agents. Inspect dashboards, run tile queries, mutate tiles/filters, edit LookML, sync git, validate. Read rules/*.md for correct usage.
+description: REQUIRED before using any Looker MCP tools. Covers QA, data verification, dashboard inspection, tile queries, mutations, LookML editing, git sync, validation. Read rules/*.md for correct tool usage and workflow order.
 metadata:
   tags: looker, lookml, mcp, dashboard, bigquery, data-engineering
 ---
 
 ## When to use
 
-Use this skill when working with Looker dashboards, LookML, or any Looker API operation. This covers:
+ALWAYS read this skill BEFORE calling any Looker MCP tool. Use when:
 
+- QA / data verification / comparing Tableau vs Looker
 - Inspecting dashboards and tiles (fields, SQL, filters, vis config)
-- Running tile queries with dashboard filters auto-applied
+- Getting tile data (use `run_tile` NOT `run_dashboard` or `query`)
 - Creating, modifying, and deleting dashboard tiles and filters
 - Editing LookML, pushing to git, syncing Looker, validating
 - Executing any of Looker's 469 API methods via SDK discovery
+
+**CRITICAL:** To get data from a tile, use `run_tile` with `dashboard_id` + `tile` (e.g. `"#1"` or `"Revenue"`). It auto-applies dashboard filters. Do NOT manually reconstruct filters.
 
 ## Tools Overview
 
 | Tool | Purpose |
 |------|--------|
 | `inspect` | Dashboard overview or tile detail (URL-smart input) |
-| `run_tile` | Execute tile query with auto-wired dashboard filters |
+| `run_tile` | **PRIMARY tool for tile data/QA.** Auto-applies dashboard filters |
 | `run_query` | Ad-hoc explore query |
 | `create_tile` | Add tile to dashboard |
 | `update_tile` | Modify tile (partial merge — only send what changed) |

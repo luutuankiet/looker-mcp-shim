@@ -99,7 +99,7 @@ async function main() {
 
   // 4. Create MCP server
   const server = new Server(
-    { name: 'looker-dev-tools', version: '0.3.0' },
+    { name: 'looker-dev-tools', version: '0.3.3' },
     { capabilities: { tools: {} } }
   )
 

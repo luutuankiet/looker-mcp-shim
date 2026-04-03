@@ -13,7 +13,7 @@ export const tools = [
   {
     name: 'inspect',
     description:
-      'Inspect a Looker dashboard or tile. Accepts URLs, dashboard IDs, or tile:NNN.\n\n' +
+      'Inspect a Looker dashboard or tile. Use this FIRST to see what tiles exist, then run_tile to get data.\n\n' +
       'Dashboard level: returns tile index (id, title, type, explore, field_count) + filters.\n' +
       'Tile level: returns full metadata (fields, filters, sorts, vis_config, filter wiring).\n\n' +
       'Examples: "151", "tile:1477", "https://host/dashboards/151"',
