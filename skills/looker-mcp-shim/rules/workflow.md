@@ -28,6 +28,7 @@ What do you need to do?
 ├─ Edit LookML code → edit files + git push + reset_to_remote (see git-ops.md)
 ├─ Validate LookML → validate (see git-ops.md)
 ├─ Compare dev vs prod → run_tile with force_production=true (see query.md)
+├─ Iterate on LookML dashboard → import_lookml_dashboard → mutate UDD → export_dashboard_lookml
 └─ Something not covered → retrieve_sdk_methods + execute_sdk_code (see sdk-escape.md)
 ```
 
@@ -71,3 +72,23 @@ To build or modify a dashboard:
 **Partial updates**: `update_tile` merges your changes with the existing query. Only send what changed. Fields, sorts, filters are preserved.
 
 **force_production**: Run a query against production LookML from dev mode. Perfect for parity checks without switching modes.
+
+## LookML Dashboard Iteration Cycle
+
+LookML dashboards are code-defined — you can't mutate tiles/filters via API.
+Import as UDD for fast iteration, then export back to LookML:
+
+```
+1. inspect({target: "model::dashboard_name"})  → verify it exists, see tiles/filters
+2. import_lookml_dashboard({lookml_dashboard_id: "model::dashboard_name", folder_id: "85"})
+   → creates UDD copy with numeric ID
+3. inspect({target: "173"})  → verify UDD has all tiles/filters
+4. update_tile / create_tile / update_filter  → iterate on UDD (no git!)
+5. run_tile({dashboard_id: "173", tile: "#1"})  → verify data
+6. export_dashboard_lookml({dashboard_id: "173"})  → get LookML YAML
+7. Write YAML to .dashboard.lookml file, git push
+8. reset_to_remote({}) → validate({}) → inspect model::dashboard_name → verify
+```
+
+**Why this workflow?** UDD mutations are instant (API calls). LookML changes require
+git commit cycles. Iterate fast on UDD, commit once when satisfied.

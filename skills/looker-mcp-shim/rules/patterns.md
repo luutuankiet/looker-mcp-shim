@@ -42,6 +42,19 @@
    - Update element
 ```
 
+## LookML Dashboard → UDD → Iterate → Export
+
+```
+1. inspect({target: "model::dashboard_name"})  → check source
+2. import_lookml_dashboard({lookml_dashboard_id: "model::dashboard_name"})
+   → {status: "success", imported_dashboard: {id: "173"}}
+3. [iterate on UDD 173 with mutation tools]
+4. export_dashboard_lookml({dashboard_id: "173"})
+   → {lookml: "---\n- dashboard: ...\n  ..."}
+5. Write lookml to .dashboard.lookml file
+6. git push, reset_to_remote, validate
+```
+
 ## Dev vs Prod Data Comparison
 
 ```

@@ -19,7 +19,7 @@ npx -y @luutuankiet/looker-mcp-shim install-skill --global  # all projects
 
 ## What This Does
 
-An AI agent using this server can do everything a Looker developer does:
+An AI agent using this server can do everything a Looker developer does — including LookML dashboard lifecycle (import, iterate, export):
 
 ```mermaid
 graph LR
@@ -28,6 +28,10 @@ graph LR
     C --> D[Edit LookML<br/>push + validate]
     D --> E[Verify<br/>re-inspect + re-query]
     E --> A
+    F[LookML Dashboard<br/>import → iterate → export] --> C
+    A --> F
+
+    style F fill:#9C27B0,color:#fff
 
     style A fill:#4285F4,color:#fff
     style B fill:#34A853,color:#fff
@@ -36,7 +40,7 @@ graph LR
     style E fill:#4285F4,color:#fff
 ```
 
-**56 tools** from one server: 15 custom shim tools + 41 dynamically bridged from Google's upstream Looker MCP.
+**57 tools** from one server: 17 custom shim tools + 41 dynamically bridged from Google's upstream Looker MCP.
 
 ---
 
@@ -109,8 +113,9 @@ LOOKER_BASE_URL=https://your-instance.cloud.looker.com
 LOOKER_CLIENT_ID=your_client_id
 LOOKER_CLIENT_SECRET=your_client_secret
 LOOKER_PROJECT_ID=your-lookml-project
-LOOKER_DEV_BRANCH=feat/your-branch
-LOOKER_ALLOWED_BRANCHES=feat/your-branch
+# Branch auto-detected from Looker. Optional overrides:
+# LOOKER_ALLOWED_BRANCHES=*                              # default: any branch
+# LOOKER_RESET_BRANCHES=feat/my-branch,tmp/sandbox       # default: none
 ```
 
 ### 2. Register
@@ -129,8 +134,7 @@ LOOKER_ALLOWED_BRANCHES=feat/your-branch
         "LOOKER_CLIENT_ID": "...",
         "LOOKER_CLIENT_SECRET": "...",
         "LOOKER_PROJECT_ID": "your-project",
-        "LOOKER_DEV_BRANCH": "feat/your-branch",
-        "LOOKER_ALLOWED_BRANCHES": "feat/your-branch"
+        "LOOKER_RESET_BRANCHES": "feat/your-branch"
       }
     }
   }
@@ -195,9 +199,8 @@ graph TD
 ### Setup
 
 ```bash
-# .env
-LOOKER_DEV_BRANCH=feat/dev_tools                    # startup branch
-LOOKER_ALLOWED_BRANCHES=*                            # switch to any branch
+# .env — branch is auto-detected from Looker, no config needed
+LOOKER_ALLOWED_BRANCHES=*                            # switch to any branch (default)
 LOOKER_RESET_BRANCHES=feat/dev_tools,tmp/sandbox     # ONLY these can be reset
 ```
 
@@ -442,6 +445,54 @@ sequenceDiagram
 
 ---
 
+### 6. LookML Dashboard Lifecycle — Import, Iterate, Export
+
+LookML dashboards are code-defined — tiles cannot be mutated via API. The shim provides a fast iteration path: import as UDD, iterate with mutation tools (no git commits), then export back to LookML.
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant Shim
+    participant Looker
+    participant Git
+
+    Note over Agent: Inspect the LookML dashboard
+    Agent->>Shim: inspect({target: "model::dashboard_name"})
+    Shim->>Looker: GET /dashboards/model::dashboard_name
+    Shim-->>Agent: 4 tiles, 14 filters, type: lookml_dashboard<br/>hint: use import_lookml_dashboard
+
+    Note over Agent: Import as editable UDD
+    Agent->>Shim: import_lookml_dashboard({<br/>lookml_dashboard_id: "model::dashboard_name",<br/>folder_id: "85"})
+    Shim->>Looker: validate_project + dashboard() + import_lookml_dashboard()
+    Shim-->>Agent: {id: "173", verification: {tiles_match: true}}
+
+    Note over Agent: Fast iteration loop (no git!)
+    loop Iterate on UDD
+        Agent->>Shim: update_tile / create_tile / update_filter
+        Agent->>Shim: run_tile({dashboard_id: "173", tile: "#1"})
+        Agent->>Shim: inspect({target: "173"})
+    end
+
+    Note over Agent: Export final state as LookML
+    Agent->>Shim: export_dashboard_lookml({dashboard_id: "173"})
+    Shim->>Looker: GET /dashboards/173/lookml
+    Shim-->>Agent: {lookml: "---\n- dashboard: ..."}
+
+    Note over Agent: Commit to code
+    Agent->>Git: Write .dashboard.lookml + git push
+    Agent->>Shim: reset_to_remote({})
+    Agent->>Shim: validate({})
+    Agent->>Shim: inspect({target: "model::dashboard_name"})
+    Note over Agent: Compiled result matches intent ✔
+```
+
+**Two loops, one bridge:**
+- **Fast loop (UDD):** mutation tools, instant, no git
+- **Slow loop (LookML):** git push + reset + validate
+- **import** enters the fast loop, **export** exits it
+
+---
+
 ## Tool Reference
 
 ### Inspection
@@ -449,6 +500,15 @@ sequenceDiagram
 | Tool | What It Does | Key Args |
 |------|-------------|----------|
 | `inspect` | Dashboard overview or tile detail | `target`: URL, ID, or `tile:NNN` |
+
+
+### LookML Dashboard Lifecycle
+
+| Tool | What It Does | Key Args |
+|------|-------------|----------|
+| `inspect` | Inspect LookML dashboard (tiles, filters) | `target`: `"model::dashboard_name"` |
+| `import_lookml_dashboard` | Clone LookML dashboard as editable UDD | `lookml_dashboard_id`, `folder_id` |
+| `export_dashboard_lookml` | Export any dashboard as LookML YAML | `dashboard_id` |
 
 ### Query Execution
 
@@ -528,7 +588,7 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 | Setting | Purpose |
 |---------|--------|
 | `LOOKER_ALLOWED_BRANCHES` | Branch allowlist for `switch_mode`. Set `*` for any branch |
-| `LOOKER_RESET_BRANCHES` | Branches where `reset_to_remote` is allowed (defaults to dev branch only) |
+| `LOOKER_RESET_BRANCHES` | Branches where `reset_to_remote` is allowed (defaults to none) |
 | `LOOKER_SANDBOX_FOLDER_ID` | Restrict dashboard saves to folder |
 
 ---
@@ -541,10 +601,9 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 | `LOOKER_CLIENT_ID` | **Yes** | — | API client ID |
 | `LOOKER_CLIENT_SECRET` | **Yes** | — | API client secret |
 | `LOOKER_PROJECT_ID` | No | `''` | LookML project ID |
-| `LOOKER_DEV_BRANCH` | No | `feat/dev_tools` | Default dev branch |
-| `LOOKER_ALLOWED_BRANCHES` | No | `feat/dev_tools` | Comma-separated allowlist |
-| `LOOKER_SANDBOX_FOLDER_ID` | No | — | Restrict saves to folder |
-| `LOOKER_RESET_BRANCHES` | No | `LOOKER_DEV_BRANCH` | Branches where `reset_to_remote` is allowed (safety gate) |
+| `LOOKER_ALLOWED_BRANCHES` | No | `*` | Branch allowlist for switch_mode. `*` = any branch |
+| `LOOKER_RESET_BRANCHES` | No | `''` (none) | Branches where `reset_to_remote` is allowed. Must be explicit |
+| `LOOKER_SANDBOX_FOLDER_ID` | No | — | Default folder for import_lookml_dashboard |
 | `SKIP_UPSTREAM` | No | — | Set to `1` to disable upstream bridge |
 
 ---
@@ -564,7 +623,7 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 | SDK method discovery | \u274c | \u2705 retrieve + describe from swagger |
 | Arbitrary SDK execution | \u274c | \u2705 with safety proxy |
 | Long query handling | \u274c | \u2705 120s timeout + async fallback |
-| **Total tools** | **41** | **56** (15 shim + 41 bridged) |
+| **Total tools** | **41** | **57** (17 shim + 41 bridged, 1 shared name) |
 
 You only register one server. It bridges the upstream automatically.
 

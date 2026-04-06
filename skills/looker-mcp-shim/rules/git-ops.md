@@ -4,7 +4,7 @@
 
 Two separate gates:
 - `LOOKER_ALLOWED_BRANCHES` — controls `switch_mode`. Set `*` to allow any branch.
-- `LOOKER_RESET_BRANCHES` — controls `reset_to_remote`. Explicit list only (no wildcard). Defaults to `LOOKER_DEV_BRANCH`.
+- `LOOKER_RESET_BRANCHES` — controls `reset_to_remote`. Explicit list only (no wildcard). Defaults to empty (nothing resettable unless explicitly listed).
 
 **Switching is safe** (read-only inspection per session). **Resetting is destructive** (wipes uncommitted changes).
 
@@ -16,6 +16,13 @@ reset_to_remote({})                                 → BLOCKED if branch not in
 **Rule:** Always switch to a safe branch (one in `RESET_BRANCHES`) before calling `reset_to_remote`.
 
 ## Switch Mode — Dev Mode, Git Sync, Validation
+
+## Branch Auto-Detection
+
+On startup, the shim auto-detects the current branch from Looker via `sdk.git_branch()`.
+No configuration needed — control the branch via the Looker UI.
+
+The agent always knows which branch it is on (returned in every response).
 
 ## Switch Mode
 
@@ -34,7 +41,7 @@ Dev mode is required for:
 
 Branch must be in `LOOKER_ALLOWED_BRANCHES` or the call is rejected. Set `LOOKER_ALLOWED_BRANCHES=*` to allow any branch.
 
-**Safety:** `reset_to_remote` is gated separately by `LOOKER_RESET_BRANCHES` (defaults to `LOOKER_DEV_BRANCH` only). The agent can switch to any branch for inspection but can only reset branches you explicitly approve.
+**Safety:** `reset_to_remote` is gated separately by `LOOKER_RESET_BRANCHES` (defaults to empty — nothing resettable). The agent can switch to any branch for inspection but can only reset branches you explicitly approve.
 
 ## Reset to Remote
 

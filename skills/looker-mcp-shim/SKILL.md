@@ -49,6 +49,8 @@ Our hand-rolled shim tools are **always preferred** over upstream equivalents. T
 | `create_filter` | Add dashboard filter |
 | `update_filter` | Modify filter |
 | `delete_filter` | Remove filter |
+| `import_lookml_dashboard` | Import LookML dashboard as editable UDD copy for fast iteration |
+| `export_dashboard_lookml` | Export any dashboard as LookML YAML for committing to code |
 | `switch_mode` | Toggle dev/prod mode with branch |
 | `reset_to_remote` | Sync Looker project to git HEAD |
 | `validate` | LookML validation with file:line errors |
