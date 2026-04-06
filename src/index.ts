@@ -40,9 +40,10 @@ import * as queryTools from './tools/query.js'
 import * as executeTools from './tools/execute.js'
 import * as dashboardTools from './tools/dashboard.js'
 import * as sdkCatalogTools from './tools/sdk-catalog.js'
+import * as lookmlDashboardTools from './tools/lookml-dashboard.js'
 import { loadCatalog } from './tools/sdk-catalog.js'
 
-const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools]
+const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools, lookmlDashboardTools]
 
 // Collect shim tool definitions
 const shimToolDefs = toolModules.flatMap((mod) => mod.tools)

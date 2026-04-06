@@ -13,17 +13,18 @@ export const tools = [
   {
     name: 'inspect',
     description:
-      'Inspect a Looker dashboard or tile. Use this FIRST to see what tiles exist, then run_tile to get data.\n\n' +
+      'Inspect a Looker dashboard (UDD or LookML) or tile. Use this FIRST to see what tiles exist, then run_tile to get data.\n\n' +
       'Dashboard level: returns tile index (id, title, type, explore, field_count) + filters.\n' +
-      'Tile level: returns full metadata (fields, filters, sorts, vis_config, filter wiring).\n\n' +
-      'Examples: "151", "tile:1477", "https://host/dashboards/151"',
+      'Tile level: returns full metadata (fields, filters, sorts, vis_config, filter wiring).\n' +
+      'LookML dashboard: pass model::dashboard_name (e.g. "general_healthcare_services::expired_calls_dashboard").\n\n' +
+      'Examples: "151", "tile:1477", "https://host/dashboards/151", "model::dashboard_name"',
     inputSchema: {
       type: 'object' as const,
       properties: {
         target: {
           type: 'string',
           description:
-            'Dashboard URL, dashboard ID (e.g. "151"), or tile reference (e.g. "tile:1477")',
+            'Dashboard URL, dashboard ID (e.g. "151"), tile reference (e.g. "tile:1477"), or LookML dashboard (e.g. "model::dashboard_name")',
         },
       },
       required: ['target'],
@@ -43,6 +44,8 @@ export async function handle(
   switch (target.type) {
     case 'dashboard':
       return inspectDashboard(target.id!, session)
+    case 'lookml_dashboard':
+      return inspectLookmlDashboard(target.id!, session)
     case 'tile':
       return inspectTile(target.id!, session)
     case 'explore':
@@ -93,6 +96,49 @@ async function inspectDashboard(dashboardId: string, session: Session) {
 
   return {
     dashboard_id: dashboardId,
+    tile_count: tiles.length,
+    tiles,
+    filters: dashFilters,
+    mode: session.currentMode(),
+    branch: session.currentBranch(),
+  }
+}
+
+async function inspectLookmlDashboard(lookmlDashboardId: string, session: Session) {
+  const { sdk } = session
+
+  // Single API call — LookML dashboards return elements + filters inline
+  const dash = await sdk.ok(sdk.dashboard(lookmlDashboardId, '')) as any
+
+  const elements = dash.dashboard_elements || []
+  const filters = dash.dashboard_filters || []
+
+  const tiles = elements.map((e: any, idx: number) => {
+    const q = e.query || e.result_maker?.query || {}
+    return {
+      '#': idx + 1,
+      id: e.id,
+      title: e.title || e.title_text || '(untitled)',
+      type: e.type,
+      model: q.model,
+      explore: q.view,
+      field_count: (q.fields || []).length,
+      query_id: e.query_id || e.result_maker?.query_id,
+    }
+  })
+
+  const dashFilters = filters.map((f: any) => ({
+    id: f.id,
+    name: f.name,
+    title: f.title,
+    type: f.type,
+    default_value: f.default_value,
+  }))
+
+  return {
+    dashboard_id: lookmlDashboardId,
+    type: 'lookml_dashboard',
+    title: dash.title || '(untitled)',
     tile_count: tiles.length,
     tiles,
     filters: dashFilters,

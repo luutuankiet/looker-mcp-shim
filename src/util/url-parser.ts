@@ -6,7 +6,7 @@
  */
 
 export interface ParsedTarget {
-  type: 'dashboard' | 'tile' | 'explore' | 'look'
+  type: 'dashboard' | 'lookml_dashboard' | 'tile' | 'explore' | 'look'
   id?: string
   model?: string
   explore?: string
@@ -29,9 +29,20 @@ export function parseTarget(input: string): ParsedTarget {
     return { type: 'dashboard', id: trimmed }
   }
 
+  // model::dashboard_name → LookML dashboard (non-URL string with ::)
+  if (/^[^/]+::[^/]+$/.test(trimmed)) {
+    return { type: 'lookml_dashboard', id: trimmed }
+  }
+
   // URL patterns
   try {
     const url = new URL(trimmed)
+
+    // /dashboards/model::name (LookML dashboard URL — must check before numeric)
+    const lookmlDashMatch = url.pathname.match(/\/dashboards\/([^/]+::[^/]+)/)
+    if (lookmlDashMatch) {
+      return { type: 'lookml_dashboard', id: decodeURIComponent(lookmlDashMatch[1]) }
+    }
 
     // /dashboards/NNN
     const dashMatch = url.pathname.match(/\/dashboards\/(\d+)/)
@@ -87,5 +98,5 @@ export function parseTarget(input: string): ParsedTarget {
     return { type: 'dashboard', id: trimmed.replace(/\D/g, '') }
   }
 
-  throw new Error(`Cannot parse target: "${input}". Expected a URL, dashboard ID, or tile:NNN`)
+  throw new Error(`Cannot parse target: "${input}". Expected a URL, dashboard ID, tile:NNN, or model::dashboard_name`)
 }
