@@ -3,28 +3,29 @@
 ## 1. Current Understanding
 
 <current_mode>
-stabilize — v0.3.3 shipped, DX hardening
+stabilize — v0.4.2 shipped, LookML dashboard lifecycle complete
 </current_mode>
 
 <active_task>
-none — all phases complete, npm publish pending OTP
+none — v0.4.2 shipped with auto-release CI
 </active_task>
 
 <parked_tasks>
 - Phase 1.5: LookML file I/O tools (read_lookml_files, edit_lookml_files, grep_lookml) — DEPRIORITIZED, upstream bridge provides get_project_files/update_project_file
-- GHA publish workflow needs npm OIDC setup (user will handle)
-- npm publish needs user OTP for each release
+- GHA publish workflow: OIDC publish working, auto-release on tag push (v0.4.2+)
 </parked_tasks>
 
 <vision>
-One MCP server giving AI agents FULL Looker developer autonomy — inspect, query, mutate dashboards/tiles/filters, edit LookML, sync git, validate. 56 tools (15 shim + 41 upstream bridged). Skill docs for zero-context agent onboarding. Dashboard filter auto-wiring so agents get data without Looker domain knowledge.
+One MCP server giving AI agents FULL Looker developer autonomy — inspect, query, mutate dashboards/tiles/filters, edit LookML, sync git, validate. 57 tools (17 shim + 41 upstream bridged). LookML dashboard lifecycle: inspect, import as UDD, iterate, export back to LookML. Skill docs for zero-context agent onboarding. Dashboard filter auto-wiring so agents get data without Looker domain knowledge.
 </vision>
 
 <decisions>
 - Package: @luutuankiet/looker-mcp-shim (published on npm)
 - Repo: git@github.com:luutuankiet/looker-mcp-shim.git
 - SDK: @looker/sdk-node v24.20 + @modelcontextprotocol/sdk v1.12
-- Safety: BLOCKED_METHODS hardcoded. Branch switching gated by LOOKER_ALLOWED_BRANCHES (* = any). reset_to_remote gated SEPARATELY by LOOKER_RESET_BRANCHES (explicit list only, no wildcard)
+- Safety: BLOCKED_METHODS hardcoded. Branch switching gated by LOOKER_ALLOWED_BRANCHES (* = any, default). reset_to_remote gated SEPARATELY by LOOKER_RESET_BRANCHES (explicit list only, defaults to empty)
+- LOOKER_DEV_BRANCH removed — startup auto-detects current branch from Looker via sdk.git_branch(). Zero config needed
+- LookML dashboards: inspect via sdk.dashboard(model::name), import via sdk.import_lookml_dashboard(), export via sdk.dashboard_lookml()
 - Looker API rejects inline query on create/update element — must two-step: create_query() then reference via query_id
 - client_id must be excluded from writable query fields when creating new queries
 - Dashboard filter auto-wiring: run_tile reads filter_wiring + dashboard defaults, injects into query automatically
@@ -35,11 +36,11 @@ One MCP server giving AI agents FULL Looker developer autonomy — inspect, quer
 </decisions>
 
 <blockers>
-None — npm publish needs user OTP
+None
 </blockers>
 
 <next_action>
-npm publish v0.3.3 (user OTP required). Then real-world QA: agent-driven Tableau→Looker migration on dashboard 152.
+Real-world QA: agent-driven Tableau→Looker migration using LookML dashboard import→iterate→export workflow. Update skill docs for patterns.md with migration recipe using new tools.
 </next_action>
 
 ---
@@ -61,6 +62,10 @@ npm publish v0.3.3 (user OTP required). Then real-world QA: agent-driven Tableau
 | 2026-04-03 | Tool discoverability fix: run_tile as PRIMARY | v0.3.3 — agents find run_tile instead of hallucinating query/query_sql |
 | 2026-04-03 | Wildcard branches + reset_to_remote safety gate | ALLOWED_BRANCHES=* for switching, RESET_BRANCHES for destructive ops |
 | 2026-04-03 | Stress test dashboard 152: 29/29 pass | Full e2e: inspect, query, mutate, SDK code, git ops, mode switching |
+| 2026-04-06 | LookML dashboard inspect + import_lookml_dashboard | v0.4.0 — parse model::name, inspect via sdk.dashboard(), import to UDD with validation |
+| 2026-04-06 | export_dashboard_lookml + LOOKER_DEV_BRANCH removal | v0.4.1 — full lifecycle (inspect→import→iterate→export), auto-detect branch from Looker |
+| 2026-04-06 | GHA auto-release on tag push | v0.4.2 — gh release create --generate-notes, zero manual changelog |
+| 2026-04-06 | README + skill docs updated for LookML dashboards | All 6 doc files updated: workflow, patterns, inspect, git-ops, SKILL.md |
 
 ---
 
@@ -303,3 +308,110 @@ skills/looker-mcp-shim/       # Ships with npm package
 **What was decided:** Full Looker dev autonomy achieved. 56 tools from single server. Filter auto-wiring solves the parameter-driven dimension problem. Branch switching decoupled from reset safety. Skill docs guide zero-context agents.
 **Next action:** npm publish v0.3.3 (needs user OTP). Then real-world QA: agent-driven Tableau→Looker migration on dashboard 152.
 **If pivoting:** All source in `src/`, tests in `src/__test__/`. Run `SKIP_UPSTREAM=1 npx tsx src/__test__/stress.test.ts` for full verification. Skills at `skills/looker-mcp-shim/`. — grep for `IWrite*` interfaces
+
+### [LOG-004] - [EXEC] [DECISION] - LookML dashboard lifecycle: inspect, import, export + DX overhaul - Task: LookML-Dashboard
+**Timestamp:** 2026-04-06 05:10
+**Depends On:** LOG-003 (v0.3.3 stable baseline)
+
+---
+
+#### Context: Why LookML Dashboard Support?
+
+Existing `inspect` only handled UDD (User-Defined Dashboards) by numeric ID. LookML dashboards (code-defined, referenced as `model::dashboard_name`) were invisible to agents. This meant agents could edit `.dashboard.lookml` files but could never verify what Looker actually compiled from that code — flying blind.
+
+#### What Was Built
+
+**1. url-parser.ts — `lookml_dashboard` target type**
+- Bare string: `model::dashboard_name` → `{type: 'lookml_dashboard', id: '...'}`
+- URL: `/dashboards/model::dashboard_name` → same (checked before numeric pattern)
+- Added to `ParsedTarget` union type
+
+**2. inspect.ts — LookML dashboard handler**
+- `case 'lookml_dashboard'` → `sdk.dashboard(id)` (single API call, elements + filters inline)
+- Returns same shape as UDD inspect + `type: 'lookml_dashboard'` + `hint` field steering agents to `import_lookml_dashboard`
+- Key insight: no `sdk.lookml_dashboard()` method exists — `sdk.dashboard()` accepts both numeric IDs and `model::name` strings
+
+**3. lookml-dashboard.ts — Two new tools**
+
+| Tool | SDK Call | Purpose |
+|------|---------|--------|
+| `import_lookml_dashboard` | `sdk.import_lookml_dashboard(id, folder_id)` | Clone LookML dashboard → editable UDD |
+| `export_dashboard_lookml` | `sdk.dashboard_lookml(id)` | Export any dashboard → LookML YAML |
+
+**import_lookml_dashboard pipeline:**
+1. Validate LookML (`sdk.validate_project()`) — blocks import if model has errors
+2. Verify source exists (`sdk.dashboard(id)`)
+3. Import as UDD (`sdk.import_lookml_dashboard(id, folder_id)`)
+4. Post-import verification — reads back UDD, confirms tiles_match + filters_match
+5. Returns `next_steps` array guiding the agent
+
+**Error handling tested:**
+- Not found → `status: 'source_not_found'` with hint
+- Bad format (no `::`) → throws with example
+- Duplicate import → Looker auto-suffixes "(imported)", no collision
+- Validation failures → `status: 'validation_failed'` with error details
+
+#### Key Decisions
+
+| Decision | Rationale | Alternatives Rejected |
+|----------|-----------|----------------------|
+| Remove `LOOKER_DEV_BRANCH` entirely | `sdk.git_branch()` auto-detects current branch. Config env var creates friction — if Looker is on branch A with uncommitted work and .env says B, startup force-switches and hides the work | Keep as optional (still confusing), keep as required (unnecessary config) |
+| `ALLOWED_BRANCHES` default `*` | Switching is safe (read-only per session). Restrictive default blocks legitimate multi-branch workflows | Keep restrictive default (too many support questions) |
+| `RESET_BRANCHES` default empty | Destructive op should require explicit opt-in. Empty = nothing resettable | Default to DEV_BRANCH (removed), default to all (dangerous) |
+| Inspect hint field for LookML dashboards | Agents reading inspect output don't know about `import_lookml_dashboard`. Inline hint guarantees discoverability | Skill docs only (agent might not read), separate status tool (overhead) |
+| `export_dashboard_lookml` as separate tool | Gives agent the YAML, lets it decide how to write/commit. Simpler than a full roundtrip tool | Full roundtrip (opinionated), escape hatch only (undiscoverable) |
+
+#### Bug Fixes
+
+| Bug | File | Fix |
+|-----|------|-----|
+| Server version `0.3.3` vs package `0.4.0` | `index.ts:103` | Updated to match package.json |
+| `switchMode(dev)` with no branch crashed | `core.ts:143` | Re-detect current branch instead of calling `update_git_branch('')` |
+| url-parser `"abc"` → `{type: 'dashboard', id: ''}` | `url-parser.ts:96` | Removed fragile numeric fallback |
+
+#### Test Results (7 scenarios, live Looker instance)
+
+| # | Test | Result |
+|---|------|--------|
+| T1 | Startup auto-detect (no DEV_BRANCH) | ✅ Detects current branch |
+| T2 | Free branch swap → back | ✅ ALLOWED_BRANCHES=* works |
+| T3 | Reset gate blocks non-listed branch | ✅ Clear error with branch + allowed list |
+| T4 | LookML dashboard inspect + hint | ✅ 4 tiles, 14 filters, hint present |
+| T5 | export_dashboard_lookml("173") | ✅ Returns LookML YAML |
+| T6 | url-parser rejects "abc" | ✅ Throws clean error |
+| T7 | switch_mode(dev) no branch arg | ✅ Stays on current branch |
+
+#### Docs Updated
+
+| File | Changes |
+|------|--------|
+| README.md | Config table (removed DEV_BRANCH, fixed defaults), tool count 17+41=57, new LookML Dashboard Lifecycle mermaid diagram |
+| SKILL.md | Added import_lookml_dashboard + export_dashboard_lookml to tool table |
+| rules/inspect.md | Added model::dashboard_name to URL table + LookML inspection section |
+| rules/workflow.md | Added LookML dashboard branch to decision tree + iteration cycle |
+| rules/patterns.md | Added LookML import→iterate→export recipe |
+| rules/git-ops.md | Updated RESET_BRANCHES default, added Branch Auto-Detection section |
+
+#### CI/CD: Auto-Release on Tag Push
+
+Added `release` job to `.github/workflows/publish.yml`:
+- Triggers on `v*` tag push (same as existing publish)
+- Runs `gh release create --generate-notes` after tests pass
+- Parallel with npm publish — no sequential dependency
+- Verified working: v0.4.2 release auto-created with changelog link
+
+#### Version History This Session
+
+| Version | Commit | What |
+|---------|--------|------|
+| v0.4.0 | `357e185` + `510aef2` | LookML dashboard inspect + import tool |
+| v0.4.1 | `bc595ed` + `6976fc3` | export tool + DEV_BRANCH removal + bug fixes + full docs update |
+| v0.4.2 | `b511b27` + `0aa9487` | GHA auto-release workflow |
+
+---
+
+📦 STATELESS HANDOFF (for future agents reading this log)
+**Dependency chain:** LOG-004 ← LOG-003 (v0.3.3 baseline)
+**What was decided:** LookML dashboards get full lifecycle: inspect (sdk.dashboard), import to UDD (sdk.import_lookml_dashboard), iterate with mutation tools, export back (sdk.dashboard_lookml). LOOKER_DEV_BRANCH removed entirely — always auto-detect from Looker. ALLOWED_BRANCHES defaults to *. RESET_BRANCHES defaults to empty. GHA auto-creates GitHub Release with notes on tag push.
+**Next action:** Real-world QA using the full LookML dashboard workflow on a migration. Skill docs may need refinement after first agent test.
+**If pivoting:** Start from LOG-004 + LOG-003 for full project context. v0.4.2 is the stable baseline with 17 shim tools.
