@@ -20,15 +20,15 @@ import type { Looker40SDK } from '@looker/sdk'
 
 export const CONFIG = {
   projectId: process.env.LOOKER_PROJECT_ID || '',
-  devBranch: process.env.LOOKER_DEV_BRANCH || 'feat/dev_tools',
+  devBranch: process.env.LOOKER_DEV_BRANCH || '',
   /** Branches the agent can switch_mode to. '*' = any branch. */
-  allowedBranches: (process.env.LOOKER_ALLOWED_BRANCHES || 'feat/dev_tools')
+  allowedBranches: (process.env.LOOKER_ALLOWED_BRANCHES || '*')
     .split(',')
     .map(b => b.trim())
     .filter(Boolean),
   /** Branches that reset_to_remote can wipe. Defaults to LOOKER_DEV_BRANCH only.
    *  This is deliberately separate from allowedBranches — switching is safe, resetting is destructive. */
-  resetBranches: (process.env.LOOKER_RESET_BRANCHES || process.env.LOOKER_DEV_BRANCH || 'feat/dev_tools')
+  resetBranches: (process.env.LOOKER_RESET_BRANCHES || process.env.LOOKER_DEV_BRANCH || '')
     .split(',')
     .map(b => b.trim())
     .filter(Boolean),
@@ -105,17 +105,34 @@ export async function createSession(): Promise<Session> {
   const user = await sdk.ok(sdk.me()) as any
   console.error(`[looker-dev-tools] Authenticated as: ${user.display_name || user.email || 'unknown'}`)
 
-  // Default: enter dev mode on configured branch
+  // Default: enter dev mode
   await sdk.ok(sdk.update_session({ workspace_id: 'dev' }))
   _currentMode = 'dev'
 
-  try {
-    await sdk.ok(sdk.update_git_branch(CONFIG.projectId, { name: CONFIG.devBranch }))
-    _currentBranch = CONFIG.devBranch
-    console.error(`[looker-dev-tools] Dev mode: branch ${CONFIG.devBranch}`)
-  } catch (e: any) {
-    console.error(`[looker-dev-tools] Warning: branch switch: ${e.message}`)
-    _currentBranch = CONFIG.devBranch
+  if (CONFIG.devBranch) {
+    // Explicit branch configured — switch to it
+    try {
+      await sdk.ok(sdk.update_git_branch(CONFIG.projectId, { name: CONFIG.devBranch }))
+      _currentBranch = CONFIG.devBranch
+      console.error(`[looker-dev-tools] Dev mode: branch ${CONFIG.devBranch} (from LOOKER_DEV_BRANCH)`)
+    } catch (e: any) {
+      console.error(`[looker-dev-tools] Warning: could not switch to ${CONFIG.devBranch}: ${e.message}`)
+      _currentBranch = CONFIG.devBranch
+    }
+  } else {
+    // No branch configured — auto-detect current branch from Looker
+    try {
+      const branchInfo = await sdk.ok(sdk.git_branch(CONFIG.projectId)) as any
+      _currentBranch = branchInfo.name || null
+      if (_currentBranch) {
+        console.error(`[looker-dev-tools] Dev mode: branch ${_currentBranch} (auto-detected)`)
+      } else {
+        console.error('[looker-dev-tools] Dev mode: no branch detected (personal dev branch)')
+      }
+    } catch (e: any) {
+      console.error(`[looker-dev-tools] Warning: could not detect branch: ${e.message}`)
+      _currentBranch = null
+    }
   }
 
   // --- Mode switching ---
