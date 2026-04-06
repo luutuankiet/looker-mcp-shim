@@ -1,16 +1,36 @@
 /**
- * lookml-dashboard tools — import LookML dashboards to UDD for fast iteration.
+ * lookml-dashboard tools — LookML dashboard lifecycle.
  *
- * Workflow: inspect LookML dashboard → validate → import as UDD → iterate with
- * existing mutation tools (no git commits) → when satisfied, port back to LookML.
+ * Two tools:
+ * - import_lookml_dashboard: LookML → UDD for fast iteration (no git commits)
+ * - export_dashboard_lookml: UDD → LookML YAML for committing back to code
  *
- * Safety: validates LookML before import to avoid cloning broken dashboards.
+ * Full workflow: inspect → import → iterate (mutate UDD) → export → write to file → commit
  */
 
 import type { Session } from '../core.js'
 import { CONFIG } from '../core.js'
 
 export const tools = [
+  {
+    name: 'export_dashboard_lookml',
+    description:
+      'Export a dashboard as LookML YAML. Use after iterating on a UDD copy ' +
+      '(from import_lookml_dashboard) to get the final definition as .dashboard.lookml YAML ' +
+      'that can be written to a file and committed.\n\n' +
+      'Works on ANY dashboard (UDD or LookML). Returns raw LookML YAML string.\n\n' +
+      'Example: export_dashboard_lookml({dashboard_id: "173"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        dashboard_id: {
+          type: 'string',
+          description: 'Dashboard ID (numeric UDD ID or model::dashboard_name)',
+        },
+      },
+      required: ['dashboard_id'],
+    },
+  },
   {
     name: 'import_lookml_dashboard',
     description:
@@ -51,6 +71,9 @@ export async function handle(
   args: Record<string, unknown>,
   session: Session
 ): Promise<unknown> {
+  if (name === 'export_dashboard_lookml') {
+    return exportDashboardLookml(args, session)
+  }
   if (name !== 'import_lookml_dashboard') throw new Error(`Unknown tool: ${name}`)
 
   const { sdk } = session
@@ -193,6 +216,42 @@ export async function handle(
       `run_tile on any tile to check data`,
       'Use update_tile / create_tile / update_filter to iterate',
       'When satisfied, port changes back to .dashboard.lookml and commit',
+    ],
+  }
+}
+
+async function exportDashboardLookml(
+  args: Record<string, unknown>,
+  session: Session
+): Promise<unknown> {
+  const { sdk } = session
+  const dashboardId = args.dashboard_id as string
+
+  if (!dashboardId) {
+    throw new Error('dashboard_id is required')
+  }
+
+  const result = await sdk.ok(sdk.dashboard_lookml(dashboardId)) as any
+
+  if (!result.lookml) {
+    return {
+      status: 'empty',
+      dashboard_id: dashboardId,
+      error: 'No LookML generated. The dashboard may have no elements.',
+    }
+  }
+
+  return {
+    status: 'success',
+    dashboard_id: dashboardId,
+    folder_id: result.folder_id,
+    lookml: result.lookml,
+    mode: session.currentMode(),
+    branch: session.currentBranch(),
+    next_steps: [
+      'Write the lookml field to a .dashboard.lookml file',
+      'git push and reset_to_remote to apply',
+      'inspect model::dashboard_name to verify compiled result',
     ],
   }
 }

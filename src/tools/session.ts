@@ -9,9 +9,11 @@ export const tools = [
     name: 'switch_mode',
     description:
       'Switch between Looker dev and prod mode.\n\n' +
-      'Dev mode: edits affect dev branch only. Specify branch name.\n' +
+      'Dev mode: edits affect dev branch only. Specify branch to switch, or omit to stay on current branch.\n' +
       'Prod mode: read-only access to production LookML.\n\n' +
-      'Branch must be in LOOKER_ALLOWED_BRANCHES (.env) or the call is rejected.',
+      'Branch switching is free by default (LOOKER_ALLOWED_BRANCHES=*). ' +
+      'If restricted, only branches in that list are allowed.\n' +
+      'Current branch is always returned in the response.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -22,7 +24,7 @@ export const tools = [
         },
         branch: {
           type: 'string',
-          description: 'Git branch for dev mode (optional, defaults to LOOKER_DEV_BRANCH)',
+          description: 'Git branch for dev mode (optional — omit to stay on current branch)',
         },
       },
       required: ['mode'],

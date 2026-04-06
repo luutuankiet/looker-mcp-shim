@@ -144,6 +144,8 @@ async function inspectLookmlDashboard(lookmlDashboardId: string, session: Sessio
     filters: dashFilters,
     mode: session.currentMode(),
     branch: session.currentBranch(),
+    hint: 'This is a LookML dashboard (code-defined). Tiles cannot be mutated directly. ' +
+      'Use import_lookml_dashboard to create an editable UDD copy for fast iteration.',
   }
 }
 

@@ -9,7 +9,10 @@ export const tools = [
     name: 'reset_to_remote',
     description:
       'Reset Looker project to remote git HEAD. Destroys uncommitted dev changes.\n' +
-      'Only works in dev mode. Use after pushing LookML to Bitbucket.',
+      'Only works in dev mode. Use after pushing LookML to git remote.\n\n' +
+      'SAFETY GATE: Only branches listed in LOOKER_RESET_BRANCHES can be reset.\n' +
+      'If blocked, the error tells you which branch you are on and which branches allow reset.\n' +
+      'Switch to an allowed branch first with switch_mode, then retry.',
     inputSchema: {
       type: 'object' as const,
       properties: {},

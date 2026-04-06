@@ -93,10 +93,5 @@ export function parseTarget(input: string): ParsedTarget {
     // Not a valid URL, fall through
   }
 
-  // Default: treat as dashboard ID if it looks numeric-ish, otherwise error
-  if (/^\d+$/.test(trimmed.replace(/\D/g, ''))) {
-    return { type: 'dashboard', id: trimmed.replace(/\D/g, '') }
-  }
-
   throw new Error(`Cannot parse target: "${input}". Expected a URL, dashboard ID, tile:NNN, or model::dashboard_name`)
 }
