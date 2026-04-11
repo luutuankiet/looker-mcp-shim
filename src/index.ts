@@ -31,6 +31,7 @@ import {
 
 import { createSession, type Session } from './core.js'
 import { connectUpstream, type UpstreamBridge } from './upstream.js'
+import { wrapShimResult, wrapUpstreamResult } from './util/mcp-result.js'
 
 // Shim tool modules (our custom tools)
 import * as sessionTools from './tools/session.js'
@@ -116,8 +117,7 @@ async function main() {
     if (shimHandler) {
       try {
         const result = await shimHandler(name, args || {}, session)
-        const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-        return { content: [{ type: 'text' as const, text }] }
+        return wrapShimResult(result)
       } catch (error: any) {
         console.error(`[looker-dev-tools] Tool error (${name}):`, error.message)
         return {
@@ -129,11 +129,8 @@ async function main() {
 
     if (upstreamToolNames.has(name)) {
       try {
-        const result = await upstream.callTool(name, args || {}) as any
-        // Upstream returns MCP CallToolResult shape \u2014 pass through directly
-        if (result?.content) return result
-        const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-        return { content: [{ type: 'text' as const, text }] }
+        const result = await upstream.callTool(name, args || {})
+        return wrapUpstreamResult(result)
       } catch (error: any) {
         console.error(`[looker-dev-tools] Upstream tool error (${name}):`, error.message)
         return {

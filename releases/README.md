@@ -19,6 +19,7 @@ The `publish.yml` workflow reads `releases/${{ github.ref_name }}.md` via `gh re
 
 | Version | Date | Theme |
 |---|---|---|
+| [v0.4.4](./v0.4.4.md) | 2026-04-11 | structuredContent for shim and upstream bridged tools |
 | [v0.4.3](./v0.4.3.md) | 2026-04-11 | Narrative release notes pattern adoption |
 
 *Earlier releases (v0.4.2 and prior) predate this pattern — see [GitHub Releases](https://github.com/luutuankiet/looker-mcp-shim/releases) for auto-generated changelogs.*
