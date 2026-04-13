@@ -31,7 +31,7 @@ import {
 
 import { createSession, type Session } from './core.js'
 import { connectUpstream, type UpstreamBridge } from './upstream.js'
-import { wrapShimResult, wrapUpstreamResult } from './util/mcp-result.js'
+import { wrapShimResult, wrapUpstreamResult, hasNonTextContent } from './util/mcp-result.js'
 
 // Shim tool modules (our custom tools)
 import * as sessionTools from './tools/session.js'
@@ -42,9 +42,10 @@ import * as executeTools from './tools/execute.js'
 import * as dashboardTools from './tools/dashboard.js'
 import * as sdkCatalogTools from './tools/sdk-catalog.js'
 import * as lookmlDashboardTools from './tools/lookml-dashboard.js'
+import * as renderTools from './tools/render.js'
 import { loadCatalog } from './tools/sdk-catalog.js'
 
-const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools, lookmlDashboardTools]
+const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools, lookmlDashboardTools, renderTools]
 
 // Collect shim tool definitions
 const shimToolDefs = toolModules.flatMap((mod) => mod.tools)
@@ -117,6 +118,8 @@ async function main() {
     if (shimHandler) {
       try {
         const result = await shimHandler(name, args || {}, session)
+        // Pass through pre-wrapped MCP responses (e.g., image content from render tools)
+        if (hasNonTextContent(result)) return result as any
         return wrapShimResult(result)
       } catch (error: any) {
         console.error(`[looker-dev-tools] Tool error (${name}):`, error.message)
