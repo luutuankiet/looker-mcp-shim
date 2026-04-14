@@ -40,7 +40,7 @@ graph LR
     style E fill:#4285F4,color:#fff
 ```
 
-**57 tools** from one server: 17 custom shim tools + 41 dynamically bridged from Google's upstream Looker MCP.
+**Up to 57 tools** from one server: up to 20 custom shim tools + dynamically bridged tools from Google's upstream Looker MCP. In production mode (dev mode unavailable), 11 dev-only tools are excluded automatically.
 
 ---
 
@@ -604,6 +604,7 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 | `LOOKER_ALLOWED_BRANCHES` | No | `*` | Branch allowlist for switch_mode. `*` = any branch |
 | `LOOKER_RESET_BRANCHES` | No | `''` (none) | Branches where `reset_to_remote` is allowed. Must be explicit |
 | `LOOKER_SANDBOX_FOLDER_ID` | No | — | Default folder for import_lookml_dashboard |
+| `LOOKER_SKIP_DEV_MODE` | No | — | Set to `1` to skip dev mode entry entirely (read-only production mode) |
 | `SKIP_UPSTREAM` | No | — | Set to `1` to disable upstream bridge |
 
 ---
@@ -612,20 +613,22 @@ These are prefixed with `[upstream]` in descriptions. Our shim tools take priori
 
 | Capability | Google Looker MCP | This Shim |
 |-----------|------------------|----------|
-| LookML file CRUD | \u2705 | \u2705 (via upstream bridge) |
-| Run dashboard (full) | \u2705 | \u2705 (via upstream bridge) |
-| Per-tile inspection | \u274c | \u2705 fields, filters, vis_config, filter wiring |
-| Per-tile compiled SQL | \u274c | \u2705 run_tile format=sql |
-| Create/update/delete tiles | \u274c | \u2705 with partial merge |
-| Create/update/delete filters | \u274c | \u2705 |
-| Reset to remote | \u274c | \u2705 |
-| Dev/prod mode + branch | \u274c atomic | \u2705 atomic switch |
-| SDK method discovery | \u274c | \u2705 retrieve + describe from swagger |
-| Arbitrary SDK execution | \u274c | \u2705 with safety proxy |
-| Long query handling | \u274c | \u2705 120s timeout + async fallback |
-| **Total tools** | **41** | **57** (17 shim + 41 bridged, 1 shared name) |
+| LookML file CRUD | ✅ | ✅ (via upstream bridge) |
+| Run dashboard (full) | ✅ | ✅ (via upstream bridge) |
+| Per-tile inspection | ❌ | ✅ fields, filters, vis_config, filter wiring |
+| Per-tile compiled SQL | ❌ | ✅ run_tile format=sql |
+| Create/update/delete tiles | ❌ | ✅ with partial merge (dev mode) |
+| Create/update/delete filters | ❌ | ✅ (dev mode) |
+| Reset to remote | ❌ | ✅ (dev mode) |
+| Dev/prod mode + branch | ❌ atomic | ✅ atomic switch |
+| SDK method discovery | ❌ | ✅ retrieve + describe from swagger |
+| Arbitrary SDK execution | ❌ | ✅ with safety proxy |
+| Long query handling | ❌ | ✅ 120s timeout + async fallback |
+| **Total tools** | **41** | **Up to 57** (20 shim + upstream, 1 shared name) |
 
 You only register one server. It bridges the upstream automatically.
+
+> **Production mode:** If dev mode cannot be entered (API key lacks permission, self-hosted Looker without the `/session` endpoint, or `LOOKER_SKIP_DEV_MODE=1`), the shim falls back to production mode automatically. 11 dev-only mutation/git tools are excluded from the tool surface, leaving read and query tools available. See [Configuration](#configuration) for details.
 
 ---
 

@@ -40,22 +40,24 @@ Our hand-rolled shim tools are **always preferred** over upstream equivalents. T
 
 ## Tools Overview
 
+> **Note:** Tools marked *(dev only)* are excluded when the server is running in production mode (dev mode unavailable or `LOOKER_SKIP_DEV_MODE=1`).
+
 | Tool | Purpose |
 |------|--------|
 | `inspect` | Dashboard overview or tile detail (URL-smart input) |
 | `run_tile` | **PRIMARY tool for tile data/QA.** Auto-applies dashboard filters |
 | `run_query` | Ad-hoc explore query |
-| `create_tile` | Add tile to dashboard |
-| `update_tile` | Modify tile (partial merge — only send what changed) |
-| `delete_tile` | Remove tile |
-| `create_filter` | Add dashboard filter |
-| `update_filter` | Modify filter |
-| `delete_filter` | Remove filter |
-| `import_lookml_dashboard` | Import LookML dashboard as editable UDD copy for fast iteration |
+| `create_tile` | Add tile to dashboard *(dev only)* |
+| `update_tile` | Modify tile (partial merge — only send what changed) *(dev only)* |
+| `delete_tile` | Remove tile *(dev only)* |
+| `create_filter` | Add dashboard filter *(dev only)* |
+| `update_filter` | Modify filter *(dev only)* |
+| `delete_filter` | Remove filter *(dev only)* |
+| `import_lookml_dashboard` | Import LookML dashboard as editable UDD copy for fast iteration *(dev only)* |
 | `export_dashboard_lookml` | Export any dashboard as LookML YAML for committing to code |
-| `switch_mode` | Toggle dev/prod mode with branch |
-| `reset_to_remote` | Sync Looker project to git HEAD |
-| `validate` | LookML validation with file:line errors |
+| `switch_mode` | Toggle dev/prod mode with branch *(dev only)* |
+| `reset_to_remote` | Sync Looker project to git HEAD *(dev only)* |
+| `validate` | LookML validation with file:line errors *(dev only)* |
 | `retrieve_sdk_methods` | Search 469 SDK methods by keyword |
 | `describe_sdk_method` | Get full params + code example for a method |
 | `execute_sdk_code` | Run arbitrary SDK code |

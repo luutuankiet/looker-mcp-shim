@@ -47,8 +47,22 @@ import { loadCatalog } from './tools/sdk-catalog.js'
 
 const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools, lookmlDashboardTools, renderTools]
 
-// Collect shim tool definitions
-const shimToolDefs = toolModules.flatMap((mod) => mod.tools)
+// Tools that require dev mode — excluded when running in production-only mode
+const DEV_ONLY_TOOLS = new Set([
+  'switch_mode',
+  'reset_to_remote',
+  'validate',
+  'create_tile',
+  'update_tile',
+  'delete_tile',
+  'create_filter',
+  'update_filter',
+  'delete_filter',
+  'import_lookml_dashboard',
+])
+
+// Collect shim tool definitions (filtered at startup based on session mode)
+let shimToolDefs = toolModules.flatMap((mod) => mod.tools)
 const shimToolNames = new Set(shimToolDefs.map((t) => t.name))
 
 function findShimHandler(toolName: string) {
@@ -70,6 +84,13 @@ async function main() {
   } catch (err: any) {
     console.error('[looker-dev-tools] Fatal: Failed to create Looker session:', err.message)
     process.exit(1)
+  }
+
+  // 1b. Filter out dev-only tools when running in production mode
+  if (session.currentMode() !== 'dev') {
+    const before = shimToolDefs.length
+    shimToolDefs = shimToolDefs.filter((t) => !DEV_ONLY_TOOLS.has(t.name))
+    console.error(`[looker-dev-tools] Production mode: excluded ${before - shimToolDefs.length} dev-only tools`)
   }
 
   // 2. Load SDK method catalog from Looker swagger.json (non-blocking)

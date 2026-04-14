@@ -39,6 +39,8 @@ Dev mode is required for:
 - All mutations (tiles, filters)
 - Running queries against dev branch LookML
 
+> **Graceful fallback:** If the server cannot enter dev mode (API key lacks permission, self-hosted Looker without the `/session` endpoint, or `LOOKER_SKIP_DEV_MODE=1`), it starts in production mode automatically. Dev-only tools (`switch_mode`, `reset_to_remote`, `validate`, tile/filter mutations, `import_lookml_dashboard`) are excluded from the tool surface. Read and query tools (`inspect`, `run_tile`, `run_query`, SDK escape hatch) remain available.
+
 Branch must be in `LOOKER_ALLOWED_BRANCHES` or the call is rejected. Set `LOOKER_ALLOWED_BRANCHES=*` to allow any branch.
 
 **Safety:** `reset_to_remote` is gated separately by `LOOKER_RESET_BRANCHES` (defaults to empty — nothing resettable). The agent can switch to any branch for inspection but can only reset branches you explicitly approve.
