@@ -104,22 +104,35 @@ export async function createSession(): Promise<Session> {
   const user = await sdk.ok(sdk.me()) as any
   console.error(`[looker-dev-tools] Authenticated as: ${user.display_name || user.email || 'unknown'}`)
 
-  // Default: enter dev mode
-  await sdk.ok(sdk.update_session({ workspace_id: 'dev' }))
-  _currentMode = 'dev'
+  // Default: enter dev mode (skip if API key lacks permission or env override)
+  const skipDevMode = process.env.LOOKER_SKIP_DEV_MODE === '1'
+  if (skipDevMode) {
+    console.error('[looker-dev-tools] Skipping dev mode (LOOKER_SKIP_DEV_MODE=1)')
+    _currentMode = 'prod'
+  } else {
+    try {
+      await sdk.ok(sdk.update_session({ workspace_id: 'dev' }))
+      _currentMode = 'dev'
+    } catch (e: any) {
+      console.error(`[looker-dev-tools] Warning: could not enter dev mode (${e.message}), continuing in production mode`)
+      _currentMode = 'prod'
+    }
+  }
 
   // Auto-detect current branch from Looker — zero config, respects user's Looker UI selection
-  try {
-    const branchInfo = await sdk.ok(sdk.git_branch(CONFIG.projectId)) as any
-    _currentBranch = branchInfo.name || null
-    if (_currentBranch) {
-      console.error(`[looker-dev-tools] Dev mode: branch ${_currentBranch}`)
-    } else {
-      console.error('[looker-dev-tools] Dev mode: personal dev branch (no named branch)')
+  if (_currentMode === 'dev') {
+    try {
+      const branchInfo = await sdk.ok(sdk.git_branch(CONFIG.projectId)) as any
+      _currentBranch = branchInfo.name || null
+      if (_currentBranch) {
+        console.error(`[looker-dev-tools] Dev mode: branch ${_currentBranch}`)
+      } else {
+        console.error('[looker-dev-tools] Dev mode: personal dev branch (no named branch)')
+      }
+    } catch (e: any) {
+      console.error(`[looker-dev-tools] Warning: could not detect branch: ${e.message}`)
+      _currentBranch = null
     }
-  } catch (e: any) {
-    console.error(`[looker-dev-tools] Warning: could not detect branch: ${e.message}`)
-    _currentBranch = null
   }
 
   // --- Mode switching ---
