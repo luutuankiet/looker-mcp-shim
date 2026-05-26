@@ -19,6 +19,7 @@ The `publish.yml` workflow reads `releases/${{ github.ref_name }}.md` via `gh re
 
 | Version | Date | Theme |
 |---|---|---|
+| [v0.6.0](./v0.6.0.md) | 2026-05-27 | HTTP Streamable transport: remote agents without a sidecar |
 | [v0.5.0](./v0.5.0.md) | 2026-04-13 | Visual preview: render dashboards and tiles, debug envelopes |
 | [v0.4.4](./v0.4.4.md) | 2026-04-11 | structuredContent for shim and upstream bridged tools |
 | [v0.4.3](./v0.4.3.md) | 2026-04-11 | Narrative release notes pattern adoption |
