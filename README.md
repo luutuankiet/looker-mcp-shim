@@ -2,7 +2,7 @@
 
 **One MCP server. Full Looker developer autonomy for AI agents.**
 
-Inspect dashboards tile-by-tile. Create, modify, and delete tiles and filters. Run queries with compiled SQL. Edit LookML, push, validate. Execute any of Looker's 469 API endpoints via SDK method discovery. All through a single stdio server — no human-in-the-loop for mechanical steps.
+Inspect dashboards tile-by-tile. Create, modify, and delete tiles and filters. Run queries with compiled SQL. Edit LookML, push, validate. Execute any of Looker's 469 API endpoints via SDK method discovery. Runs as **stdio** for native MCP clients OR **HTTP Streamable** for remote agents — no human-in-the-loop for mechanical steps.
 
 ```bash
 npx -y @luutuankiet/looker-mcp-shim
@@ -153,7 +153,43 @@ curl -X POST http://localhost:3456/call/inspect -d '{"args":{"target":"151"}}'
 
 Disable upstream bridge: `SKIP_UPSTREAM=1 npx @luutuankiet/looker-mcp-shim`
 
-### 4. Install Skill Docs (recommended)
+### 4. Run as HTTP server (remote agents)
+
+Serve the same tool surface over HTTP Streamable for remote MCP clients:
+
+```bash
+npx -y @luutuankiet/looker-mcp-shim serve
+# listening on http://127.0.0.1:3000/mcp
+# health check:  http://127.0.0.1:3000/health
+```
+
+**Environment variables (serve only):**
+
+| Var | Default | Purpose |
+|-----|---------|--------|
+| `PORT` | `3000` | Port to listen on |
+| `HOST` | `127.0.0.1` | Bind address (`0.0.0.0` for public) |
+| `MCP_APIKEY` | (unset) | When set, requires `?apikey=KEY` on `/mcp` requests |
+
+**Client config (Claude Code / Cursor):**
+
+```json
+{
+  "mcpServers": {
+    "looker": {
+      "type": "http",
+      "url": "http://127.0.0.1:3000/mcp"
+    }
+  }
+}
+```
+
+For production, front this with Caddy/nginx for TLS:
+`https://looker-shim.yourdomain.com/mcp` → `http://localhost:3000/mcp`.
+
+The HTTP server creates a fresh MCP Server per downstream session, but Looker auth + the upstream child process are shared singletons per node — one server can multiplex many clients.
+
+### 5. Install Skill Docs (recommended)
 
 ```bash
 npx -y @luutuankiet/looker-mcp-shim install-skill
@@ -639,6 +675,7 @@ You only register one server. It bridges the upstream automatically.
 | MCP Server | `@modelcontextprotocol/sdk` | Server + Client (for bridge) |
 | Upstream | `@toolbox-sdk/server` | Google's Looker MCP (bridged) |
 | Testing | `@luutuankiet/mcp-proxy-shim` | Passthru REST testing |
+| Transports | stdio + HTTP Streamable | `looker-mcp-shim` (stdio) / `looker-mcp-shim serve` (HTTP) |
 
 ## License
 

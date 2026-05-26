@@ -1,173 +1,82 @@
 #!/usr/bin/env node
 
-// Subcommand routing
-if (process.argv[2] === 'install-skill') {
-  await import('./install-skill.js')
-  process.exit(0)
-}
-
 /**
  * Looker Dev Tools — MCP Server Entry Point
  *
  * Unified MCP server that merges:
- * - Our custom shim tools (inspect, run_tile, mutations, execute_sdk_code, etc.)
- * - ALL upstream @toolbox-sdk/server tools (41+ from looker + looker-dev prebuilts)
+ *   - Our custom shim tools (inspect, run_tile, mutations, execute_sdk_code, render_*, …)
+ *   - ALL upstream @toolbox-sdk/server tools (41+ from looker + looker-dev prebuilts)
  *
- * Upstream tools are dynamically discovered at startup via MCP client bridge.
+ * Upstream tools are discovered dynamically at startup via MCP client bridge.
  * If upstream is unavailable, shim tools still work independently.
  *
- * Usage:
- *   npx tsx src/index.ts                          # stdio mode (upstream auto-detected)
- *   SKIP_UPSTREAM=1 npx tsx src/index.ts          # shim-only mode
- *   npx @luutuankiet/mcp-proxy-shim passthru -- npx tsx src/index.ts  # REST testing
+ * Subcommands:
+ *   looker-mcp-shim                  # stdio transport (default — for native MCP clients)
+ *   looker-mcp-shim serve            # HTTP Streamable transport on PORT (default 3000)
+ *   looker-mcp-shim install-skill    # install agent skill docs into .claude/skills/
+ *
+ * Environment variables (stdio + http):
+ *   SKIP_UPSTREAM=1                  # disable upstream bridge, run shim tools only
+ *   LOOKER_BASE_URL, LOOKER_CLIENT_ID, LOOKER_CLIENT_SECRET   # Looker API auth
+ *
+ * Environment variables (serve only):
+ *   PORT          # default 3000
+ *   HOST          # default 127.0.0.1
+ *   MCP_APIKEY    # if set, requires ?apikey=KEY on /mcp requests
+ *
+ * Examples:
+ *   npx tsx src/index.ts                                  # stdio mode
+ *   SKIP_UPSTREAM=1 npx tsx src/index.ts                  # stdio, shim-only
+ *   npx tsx src/index.ts serve                            # HTTP on 127.0.0.1:3000
+ *   PORT=4000 HOST=0.0.0.0 node dist/index.js serve       # HTTP, public
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js'
+import { bootstrap, buildServer } from './server-factory.js'
 
-import { createSession, type Session } from './core.js'
-import { connectUpstream, type UpstreamBridge } from './upstream.js'
-import { wrapShimResult, wrapUpstreamResult, hasNonTextContent } from './util/mcp-result.js'
+const subcommand = process.argv[2]
 
-// Shim tool modules (our custom tools)
-import * as sessionTools from './tools/session.js'
-import * as gitTools from './tools/git.js'
-import * as inspectTools from './tools/inspect.js'
-import * as queryTools from './tools/query.js'
-import * as executeTools from './tools/execute.js'
-import * as dashboardTools from './tools/dashboard.js'
-import * as sdkCatalogTools from './tools/sdk-catalog.js'
-import * as lookmlDashboardTools from './tools/lookml-dashboard.js'
-import * as renderTools from './tools/render.js'
-import { loadCatalog } from './tools/sdk-catalog.js'
-
-const toolModules = [sessionTools, gitTools, inspectTools, queryTools, executeTools, dashboardTools, sdkCatalogTools, lookmlDashboardTools, renderTools]
-
-// Collect shim tool definitions
-const shimToolDefs = toolModules.flatMap((mod) => mod.tools)
-const shimToolNames = new Set(shimToolDefs.map((t) => t.name))
-
-function findShimHandler(toolName: string) {
-  for (const mod of toolModules) {
-    if (mod.tools.some((t: any) => t.name === toolName)) {
-      return mod.handle
-    }
-  }
-  return null
+if (subcommand === 'install-skill') {
+  await import('./install-skill.js')
+  process.exit(0)
 }
 
-async function main() {
-  console.error('[looker-dev-tools] Starting MCP server...')
+if (subcommand === '--help' || subcommand === '-h' || subcommand === 'help') {
+  console.log(`Looker Dev Tools — MCP server with stdio + HTTP transports.
 
-  // 1. Initialize Looker session (auth + dev mode)
-  let session: Session
-  try {
-    session = await createSession()
-  } catch (err: any) {
-    console.error('[looker-dev-tools] Fatal: Failed to create Looker session:', err.message)
-    process.exit(1)
-  }
+Usage:
+  looker-mcp-shim                  Run as stdio MCP server (default)
+  looker-mcp-shim serve            Run as HTTP Streamable MCP server
+  looker-mcp-shim install-skill    Install skill docs into .claude/skills/
+  looker-mcp-shim --help           Show this help
 
-  // 2. Load SDK method catalog from Looker swagger.json (non-blocking)
-  loadCatalog(process.env.LOOKER_BASE_URL || '').catch(() => {})
+Env (all modes):  SKIP_UPSTREAM, LOOKER_BASE_URL, LOOKER_CLIENT_ID, LOOKER_CLIENT_SECRET
+Env (serve only): PORT (3000), HOST (127.0.0.1), MCP_APIKEY (optional auth)
+`)
+  process.exit(0)
+}
 
-  // 3. Connect upstream MCP bridge (unless SKIP_UPSTREAM=1)
-  let upstream: UpstreamBridge = {
-    tools: [],
-    callTool: async () => { throw new Error('No upstream') },
-    close: async () => {},
-  }
-  if (!process.env.SKIP_UPSTREAM) {
-    try {
-      upstream = await connectUpstream()
-    } catch (err: any) {
-      console.error(`[looker-dev-tools] Upstream bridge error (continuing without): ${err.message}`)
-    }
-  } else {
-    console.error('[looker-dev-tools] SKIP_UPSTREAM=1 \u2014 shim-only mode')
-  }
+if (subcommand === 'serve') {
+  const { startHttp } = await import('./http-transport.js')
+  await startHttp()
+} else {
+  // Default: stdio transport
+  console.error('[looker-dev-tools] Starting MCP server (stdio transport)…')
+  const ctx = await bootstrap()
+  const server = buildServer(ctx)
 
-  // 3. Merge tool lists: shim tools first, upstream tools that don't collide
-  const upstreamFiltered = upstream.tools.filter((t) => !shimToolNames.has(t.name))
-  const allToolDefs = [...shimToolDefs, ...upstreamFiltered]
-  const upstreamToolNames = new Set(upstreamFiltered.map((t) => t.name))
-
-  console.error(
-    `[looker-dev-tools] Tool surface: ${shimToolDefs.length} shim + ${upstreamFiltered.length} upstream = ${allToolDefs.length} total`
-  )
-
-  // 4. Create MCP server
-  const server = new Server(
-    { name: 'looker-dev-tools', version: '0.4.0' },
-    { capabilities: { tools: {} } }
-  )
-
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: allToolDefs,
-  }))
-
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params
-
-    // Route: shim handler takes priority, then upstream
-    const shimHandler = findShimHandler(name)
-    if (shimHandler) {
-      try {
-        const result = await shimHandler(name, args || {}, session)
-        // Pass through pre-wrapped MCP responses (e.g., image content from render tools)
-        if (hasNonTextContent(result)) return result as any
-        return wrapShimResult(result)
-      } catch (error: any) {
-        console.error(`[looker-dev-tools] Tool error (${name}):`, error.message)
-        return {
-          content: [{ type: 'text' as const, text: `Error: ${error.message}` }],
-          isError: true,
-        }
-      }
-    }
-
-    if (upstreamToolNames.has(name)) {
-      try {
-        const result = await upstream.callTool(name, args || {})
-        return wrapUpstreamResult(result)
-      } catch (error: any) {
-        console.error(`[looker-dev-tools] Upstream tool error (${name}):`, error.message)
-        return {
-          content: [{ type: 'text' as const, text: `Error (upstream): ${error.message}` }],
-          isError: true,
-        }
-      }
-    }
-
-    return {
-      content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
-      isError: true,
-    }
-  })
-
-  // 5. Graceful shutdown \u2014 close upstream bridge
   process.on('SIGINT', async () => {
-    await upstream.close()
+    await ctx.upstream.close()
     process.exit(0)
   })
   process.on('SIGTERM', async () => {
-    await upstream.close()
+    await ctx.upstream.close()
     process.exit(0)
   })
 
-  // 6. Connect stdio transport
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error(
-    `[looker-dev-tools] MCP server running on stdio \u2014 ${allToolDefs.length} tools registered`
+    `[looker-dev-tools] MCP server running on stdio — ${ctx.allToolDefs.length} tools registered`,
   )
 }
-
-main().catch((err) => {
-  console.error('[looker-dev-tools] Fatal:', err)
-  process.exit(1)
-})
