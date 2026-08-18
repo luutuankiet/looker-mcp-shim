@@ -1,0 +1,9 @@
+{
+  "name": "looker-mcp-shim",
+  "description": "Use the shim's Looker tools correctly: which tool beats which upstream fallback, tile-first querying with auto-wired dashboard filters, dashboard and LookML mutation, git and validation, visual preview, and the SDK escape hatch.",
+  "author": {
+    "name": "luutuankiet",
+    "url": "https://github.com/luutuankiet"
+  },
+  "skills": ["./skills/looker-mcp-shim"]
+}
